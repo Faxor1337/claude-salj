@@ -979,12 +979,12 @@ async function init() {
         const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.name + ', ' + (client.address || '') + ', ' + client.city)}`;
 
         document.getElementById('contactInfo').innerHTML = `
-            <div class="info-row"><span class="info-label">Kontaktperson</span><span class="info-value">${escHtml(client.contactPerson || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Kontaktperson</span><span class="info-value">${escHtml(client.contact_person || '-')}</span></div>
             <div class="info-row"><span class="info-label">Telefon</span><span class="info-value">${escHtml(client.phone || '-')}</span></div>
             <div class="info-row"><span class="info-label">Email</span><span class="info-value">${client.email ? `<a href="mailto:${escHtml(client.email)}">${escHtml(client.email)}</a>` : '-'}</span></div>
         `;
         document.getElementById('clientInfo').innerHTML = `
-            <div class="info-row"><span class="info-label">Kund sedan</span><span class="info-value">${client.startDate || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Kund sedan</span><span class="info-value">${client.start_date || '-'}</span></div>
             <div class="info-row"><span class="info-label">Omsättning/mån</span><span class="info-value">${formatMkr(client.revenue)}</span></div>
             <div class="info-row"><span class="info-label">Kommentar</span><span class="info-value">${escHtml(client.comment || '-')}</span></div>
         `;

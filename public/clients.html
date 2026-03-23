@@ -75,11 +75,11 @@
                 <th onclick="sortBy('city')">Stad</th>
                 <th onclick="sortBy('address')">Adress</th>
                 <th>Karta</th>
-                <th onclick="sortBy('contactPerson')">Kontaktperson</th>
+                <th onclick="sortBy('contact_person')">Kontaktperson</th>
                 <th onclick="sortBy('phone')">Telefon</th>
                 <th onclick="sortBy('email')">Email</th>
                 <th onclick="sortBy('revenue')">Omsättning/mån</th>
-                <th onclick="sortBy('startDate')">Kund sedan</th>
+                <th onclick="sortBy('start_date')">Kund sedan</th>
                 <th onclick="sortBy('comment')">Kommentar</th>
                 <th></th>
             </tr>
@@ -159,16 +159,19 @@ function renderTable() {
         c.name.toLowerCase().includes(query) ||
         c.city.toLowerCase().includes(query) ||
         (c.address || '').toLowerCase().includes(query) ||
-        (c.contactPerson || '').toLowerCase().includes(query) ||
+        (c.contact_person || '').toLowerCase().includes(query) ||
         (c.phone || '').toLowerCase().includes(query) ||
         (c.email || '').toLowerCase().includes(query)
     );
 
+    const numericFields = ['revenue', 'id'];
     filtered.sort((a, b) => {
-        let va = a[sortField] || '', vb = b[sortField] || '';
-        if (sortField === 'revenue') { va = Number(va); vb = Number(vb); }
-        else if (typeof va === 'string') va = va.toLowerCase();
-        if (typeof vb === 'string') vb = vb.toLowerCase();
+        let va = a[sortField] ?? '', vb = b[sortField] ?? '';
+        if (numericFields.includes(sortField)) {
+            va = Number(va) || 0; vb = Number(vb) || 0;
+        } else {
+            va = String(va).toLowerCase(); vb = String(vb).toLowerCase();
+        }
         if (va < vb) return sortAsc ? -1 : 1;
         if (va > vb) return sortAsc ? 1 : -1;
         return 0;
@@ -185,11 +188,11 @@ function renderTable() {
             <td>${escHtml(c.city)}</td>
             <td>${escHtml(c.address || '')}</td>
             <td><a class="map-link" href="${link}" target="_blank" rel="noopener">Visa karta</a></td>
-            <td>${escHtml(c.contactPerson || '')}</td>
+            <td>${escHtml(c.contact_person || '')}</td>
             <td>${escHtml(c.phone || '')}</td>
             <td>${emailCell}</td>
             <td class="revenue">${formatMkr(c.revenue)}</td>
-            <td>${c.startDate || ''}</td>
+            <td>${c.start_date || ''}</td>
             <td><input class="inline-comment" type="text" value="${commentVal}" placeholder="Lägg till kommentar..." title="${commentVal}" onchange="saveComment(${c.id}, this.value)" oninput="this.title=this.value" onclick="event.stopPropagation()"></td>
             <td><button class="btn-edit" onclick="event.stopPropagation();editClient(${c.id})">Redigera</button></td>
         </tr>`;
@@ -248,11 +251,11 @@ function editClient(id) {
     document.getElementById('f-name').value = c.name;
     document.getElementById('f-city').value = c.city;
     document.getElementById('f-address').value = c.address || '';
-    document.getElementById('f-contactPerson').value = c.contactPerson || '';
+    document.getElementById('f-contactPerson').value = c.contact_person || '';
     document.getElementById('f-phone').value = c.phone || '';
     document.getElementById('f-email').value = c.email || '';
     document.getElementById('f-revenue').value = c.revenue || '';
-    document.getElementById('f-startDate').value = c.startDate || '';
+    document.getElementById('f-startDate').value = c.start_date || '';
     document.getElementById('f-comment').value = c.comment || '';
     document.getElementById('modal').classList.add('active');
 }
@@ -265,19 +268,19 @@ async function saveClient() {
     const name = document.getElementById('f-name').value.trim();
     const city = document.getElementById('f-city').value.trim();
     const address = document.getElementById('f-address').value.trim();
-    const contactPerson = document.getElementById('f-contactPerson').value.trim();
+    const contact_person = document.getElementById('f-contactPerson').value.trim();
     const phone = document.getElementById('f-phone').value.trim();
     const email = document.getElementById('f-email').value.trim();
     const revenue = parseInt(document.getElementById('f-revenue').value) || 0;
-    const startDate = document.getElementById('f-startDate').value;
+    const start_date = document.getElementById('f-startDate').value;
     const comment = document.getElementById('f-comment').value.trim();
 
     if (!name) { alert('Ange butiks namn'); return; }
 
     if (editingId) {
-        await API.updateClient(editingId, { name, city, address, contactPerson, phone, email, revenue, startDate, comment });
+        await API.updateClient(editingId, { name, city, address, contact_person, phone, email, revenue, start_date, comment });
     } else {
-        await API.createClient({ name, city, address, contactPerson, phone, email, revenue, startDate, comment });
+        await API.createClient({ name, city, address, contact_person, phone, email, revenue, start_date, comment });
     }
 
     clients = await API.getClients();

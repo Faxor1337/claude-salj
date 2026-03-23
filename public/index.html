@@ -152,7 +152,7 @@
                 <th onclick="sortBy('status')">Status</th>
                 <th onclick="sortBy('comment')">Kommentar</th>
                 <th onclick="sortBy('revenue')">Omsättning</th>
-                <th onclick="sortBy('contactedBy')">Kontaktad av</th>
+                <th onclick="sortBy('contacted_by')">Kontaktad av</th>
                 <th onclick="sortBy('phone')">Telefon</th>
                 <th onclick="sortBy('email')">Email</th>
                 <th></th>
@@ -239,16 +239,19 @@ function renderTable() {
         c.city.toLowerCase().includes(query) ||
         c.status.toLowerCase().includes(query) ||
         (c.address || '').toLowerCase().includes(query) ||
-        (c.contactedBy || '').toLowerCase().includes(query) ||
+        (c.contacted_by || '').toLowerCase().includes(query) ||
         (c.phone || '').toLowerCase().includes(query) ||
         (c.email || '').toLowerCase().includes(query)
     );
 
+    const numericFields = ['revenue', 'id'];
     filtered.sort((a, b) => {
-        let va = a[sortField] || '', vb = b[sortField] || '';
-        if (sortField === 'revenue') { va = Number(va); vb = Number(vb); }
-        else if (typeof va === 'string') va = va.toLowerCase();
-        if (typeof vb === 'string') vb = vb.toLowerCase();
+        let va = a[sortField] ?? '', vb = b[sortField] ?? '';
+        if (numericFields.includes(sortField)) {
+            va = Number(va) || 0; vb = Number(vb) || 0;
+        } else {
+            va = String(va).toLowerCase(); vb = String(vb).toLowerCase();
+        }
         if (va < vb) return sortAsc ? -1 : 1;
         if (va > vb) return sortAsc ? 1 : -1;
         return 0;
@@ -258,8 +261,8 @@ function renderTable() {
     tbody.innerHTML = filtered.map(c => {
         const link = mapsUrl(c.name, c.address || '', c.city);
         const emailCell = c.email ? `<a class="email-link" href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '';
-        const contactedCell = c.contactedBy
-            ? `<span class="contacted-name" onclick="event.stopPropagation();unmarkContacted(${c.id})" title="Klicka för att ta bort markering">${esc(c.contactedBy)}</span>`
+        const contactedCell = c.contacted_by
+            ? `<span class="contacted-name" onclick="event.stopPropagation();unmarkContacted(${c.id})" title="Klicka för att ta bort markering">${esc(c.contacted_by)}</span>`
             : `<button class="btn-contact" onclick="event.stopPropagation();markContacted(${c.id})">Kontaktad</button>`;
         const commentVal = esc(c.comment || '');
         return `
@@ -304,11 +307,11 @@ async function moveToClients(id) {
         name: c.name,
         city: c.city,
         address: c.address || '',
-        contactPerson: c.contactedBy || '',
+        contact_person: c.contacted_by || '',
         phone: c.phone || '',
         email: c.email || '',
         revenue: 0,
-        startDate: new Date().toISOString().split('T')[0],
+        start_date: new Date().toISOString().split('T')[0],
         comment: c.comment || ''
     });
 
@@ -336,7 +339,7 @@ async function saveComment(id, value) {
 async function markContacted(id) {
     const c = customers.find(x => x.id === id);
     if (!c) return;
-    c.contactedBy = currentUser.name;
+    c.contacted_by = currentUser.name;
     c.status = 'Kontaktad';
     await API.updateCustomer(id, c);
     renderTable();
@@ -346,7 +349,7 @@ async function unmarkContacted(id) {
     if (!confirm('Ta bort kontaktmarkering?')) return;
     const c = customers.find(x => x.id === id);
     if (!c) return;
-    c.contactedBy = '';
+    c.contacted_by = '';
     c.status = 'Prospekt';
     await API.updateCustomer(id, c);
     renderTable();
@@ -392,7 +395,7 @@ function editCustomer(id) {
     document.getElementById('f-status').value = c.status || 'Prospekt';
     document.getElementById('f-comment').value = c.comment || '';
     document.getElementById('f-revenue').value = c.revenue || 0;
-    document.getElementById('f-contactedBy').value = c.contactedBy || '';
+    document.getElementById('f-contactedBy').value = c.contacted_by || '';
     document.getElementById('f-phone').value = c.phone || '';
     document.getElementById('f-email').value = c.email || '';
     document.getElementById('modal').classList.add('active');
@@ -409,7 +412,7 @@ async function saveCustomer() {
     const status = document.getElementById('f-status').value;
     const comment = document.getElementById('f-comment').value.trim();
     const revenue = parseInt(document.getElementById('f-revenue').value) || 0;
-    const contactedBy = document.getElementById('f-contactedBy').value.trim();
+    const contacted_by = document.getElementById('f-contactedBy').value.trim();
     const phone = document.getElementById('f-phone').value.trim();
     const email = document.getElementById('f-email').value.trim();
 
@@ -417,10 +420,10 @@ async function saveCustomer() {
 
     if (editingId) {
         const c = customers.find(x => x.id === editingId);
-        Object.assign(c, { name, city, address, status, comment, revenue, contactedBy, phone, email });
+        Object.assign(c, { name, city, address, status, comment, revenue, contacted_by, phone, email });
         await API.updateCustomer(editingId, c);
     } else {
-        await API.createCustomer({ name, city, address, status, comment, revenue, contactedBy, phone, email });
+        await API.createCustomer({ name, city, address, status, comment, revenue, contacted_by, phone, email });
     }
 
     customers = await API.getCustomers();

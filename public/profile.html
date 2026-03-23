@@ -188,11 +188,11 @@ async function moveToClients() {
         name: store.name,
         city: store.city,
         address: store.address || '',
-        contactPerson: store.contactedBy || '',
+        contact_person: store.contacted_by || '',
         phone: store.phone || '',
         email: store.email || '',
         revenue: 0,
-        startDate: new Date().toISOString().split('T')[0],
+        start_date: new Date().toISOString().split('T')[0],
         comment: store.comment || ''
     });
 
@@ -247,7 +247,7 @@ async function init() {
         document.getElementById('contactInfo').innerHTML = `
             <div class="info-row"><span class="info-label">Telefon</span><span class="info-value">${escHtml(store.phone || '-')}</span></div>
             <div class="info-row"><span class="info-label">Email</span><span class="info-value">${store.email ? `<a href="mailto:${escHtml(store.email)}">${escHtml(store.email)}</a>` : '-'}</span></div>
-            <div class="info-row"><span class="info-label">Kontaktad av</span><span class="info-value">${escHtml(store.contactedBy || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Kontaktad av</span><span class="info-value">${escHtml(store.contacted_by || '-')}</span></div>
         `;
 
         document.getElementById('salesInfo').innerHTML = `
