@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alla fakturor - Virea AB</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        .filters {
+            display: flex; gap: 8px; align-items: center;
+        }
+        .filter-btn {
+            padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+            border: 1px solid #303348; background: transparent; color: #6b7280;
+            cursor: pointer; transition: all 0.15s;
+        }
+        .filter-btn:hover { border-color: #6366f1; color: #e0e0e8; }
+        .filter-btn.active { background: rgba(99,102,241,0.15); border-color: #6366f1; color: #818cf8; }
+
+        .inv-badge {
+            display: inline-block; padding: 3px 10px; border-radius: 20px;
+            font-size: 11px; font-weight: 600;
+        }
+        .inv-badge.direct { background: rgba(34,197,94,0.12); color: #4ade80; }
+        .inv-badge.pending { background: rgba(251,146,60,0.15); color: #fb923c; }
+        .inv-badge.paid { background: rgba(99,102,241,0.15); color: #818cf8; }
+        .inv-badge.overdue { background: rgba(239,68,68,0.12); color: #f87171; }
+
+        .followup-alert {
+            font-size: 11px; color: #f87171; font-weight: 600;
+        }
+
+        .notification-bar {
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.2);
+            border-radius: 10px;
+            padding: 16px 24px;
+            margin: 0 32px 16px;
+            display: none;
+        }
+        .notification-bar.visible { display: block; }
+        .notification-bar h3 { font-size: 14px; font-weight: 600; color: #f87171; margin-bottom: 8px; }
+        .notification-bar .notif-item {
+            font-size: 13px; color: #c0c4d4; padding: 4px 0;
+        }
+        .notification-bar .notif-item a { color: #818cf8; text-decoration: none; }
+        .notification-bar .notif-item a:hover { text-decoration: underline; }
+
+        .client-link { color: #818cf8; text-decoration: none; font-weight: 600; }
+        .client-link:hover { text-decoration: underline; }
+
+        .btn-sm {
+            background: rgba(255,255,255,0.06); border: none; color: #8b8fa4;
+            padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600;
+        }
+        .btn-sm:hover { background: rgba(255,255,255,0.1); color: #e0e0e8; }
+    </style>
+</head>
+<body>
+
+<div id="notifBar" class="notification-bar">
+    <h3>Avstämningar att hantera</h3>
+    <div id="notifList"></div>
+</div>
+
+<div class="stats">
+    <div class="stat-card">
+        <div class="label">Totalt fakturerat</div>
+        <div class="value" id="statTotal">0 kr</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Obetalda</div>
+        <div class="value" id="statUnpaid">0 kr</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Väntande avstämning</div>
+        <div class="value" id="statFollowup">0</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Antal fakturor</div>
+        <div class="value" id="statCount">0</div>
+    </div>
+</div>
+
+<div class="table-container">
+    <div class="table-header">
+        <h2>Alla fakturor</h2>
+        <div style="display:flex;gap:12px;align-items:center;">
+            <div class="filters">
+                <button class="filter-btn active" onclick="setFilter('all')">Alla</button>
+                <button class="filter-btn" onclick="setFilter('unpaid')">Obetalda</button>
+                <button class="filter-btn" onclick="setFilter('pending')">Väntande</button>
+                <button class="filter-btn" onclick="setFilter('paid')">Betalda</button>
+                <button class="filter-btn" onclick="setFilter('overdue')">Förfallna</button>
+            </div>
+            <input type="text" class="search-box" placeholder="Sök faktura..." oninput="renderTable()" id="search">
+        </div>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th onclick="sortBy('nr')">Faktura #</th>
+                <th onclick="sortBy('clientName')">Kund</th>
+                <th onclick="sortBy('date')">Datum</th>
+                <th onclick="sortBy('type')">Typ</th>
+                <th onclick="sortBy('status')">Status</th>
+                <th onclick="sortBy('dueDate')">Förfallodatum</th>
+                <th>Avstämning</th>
+                <th onclick="sortBy('totalInc')">Belopp</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+</div>
+
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script>
+const currentUser = requireAuth();
+renderNav('invoices');
+
+const INVOICES_KEY = 'claude-salj-invoices';
+const CLIENTS_KEY = 'claude-salj-clients-v1';
+
+let allInvoices = JSON.parse(localStorage.getItem(INVOICES_KEY) || '{}');
+let clients = JSON.parse(localStorage.getItem(CLIENTS_KEY) || '[]');
+
+let currentFilter = 'all';
+let sortField = 'date';
+let sortAsc = false;
+
+function escHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function getAllInvoices() {
+    const all = [];
+    Object.entries(allInvoices).forEach(([cid, list]) => {
+        const client = clients.find(c => c.id === parseInt(cid));
+        list.forEach((inv, idx) => {
+            all.push({ ...inv, clientId: parseInt(cid), clientName: inv.clientName || (client ? client.name : 'Okänd'), _idx: idx });
+        });
+    });
+    return all;
+}
+
+function setFilter(f) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    renderTable();
+}
+
+function sortBy(field) {
+    if (sortField === field) sortAsc = !sortAsc;
+    else { sortField = field; sortAsc = field === 'nr' ? false : true; }
+    renderTable();
+}
+
+function renderTable() {
+    const query = (document.getElementById('search').value || '').toLowerCase();
+    const today = new Date().toISOString().split('T')[0];
+    let invoices = getAllInvoices();
+
+    // Filter
+    if (currentFilter === 'unpaid') invoices = invoices.filter(i => i.status !== 'paid');
+    else if (currentFilter === 'paid') invoices = invoices.filter(i => i.status === 'paid');
+    else if (currentFilter === 'pending') invoices = invoices.filter(i => i.type === 'pending' && i.status !== 'paid');
+    else if (currentFilter === 'overdue') invoices = invoices.filter(i => i.status !== 'paid' && i.dueDate < today);
+
+    // Search
+    if (query) {
+        invoices = invoices.filter(i =>
+            String(i.nr).includes(query) ||
+            (i.clientName || '').toLowerCase().includes(query)
+        );
+    }
+
+    // Sort
+    invoices.sort((a, b) => {
+        let va = a[sortField], vb = b[sortField];
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        if (va < vb) return sortAsc ? -1 : 1;
+        if (va > vb) return sortAsc ? 1 : -1;
+        return 0;
+    });
+
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = invoices.map(inv => {
+        const dateStr = new Date(inv.date).toLocaleDateString('sv-SE');
+        const isOverdue = inv.status !== 'paid' && inv.dueDate < today;
+        const followupOverdue = inv.followupDate && inv.followupDate <= today && inv.status !== 'paid';
+        const typeLabel = inv.type === 'pending' ? 'Väntande' : 'Leverans';
+        const statusLabel = inv.status === 'paid' ? 'Betald' : isOverdue ? 'Förfallen' : 'Obetald';
+        const badgeClass = inv.status === 'paid' ? 'paid' : isOverdue ? 'overdue' : inv.type === 'pending' ? 'pending' : 'direct';
+
+        return `<tr>
+            <td style="font-weight:600;color:#e0e0e8;">#${inv.nr}</td>
+            <td><a class="client-link" href="client-profile.html?id=${inv.clientId}">${escHtml(inv.clientName)}</a></td>
+            <td>${dateStr}</td>
+            <td><span class="inv-badge ${inv.type === 'pending' ? 'pending' : 'direct'}">${typeLabel}</span></td>
+            <td><span class="inv-badge ${badgeClass}">${statusLabel}</span></td>
+            <td style="${isOverdue ? 'color:#f87171;font-weight:600;' : ''}">${inv.dueDate || '-'}</td>
+            <td>${inv.followupDate ? (followupOverdue ? '<span class="followup-alert">⚠ ' + inv.followupDate + '</span>' : inv.followupDate) : '-'}</td>
+            <td style="font-weight:700;color:#e0e0e8;">${inv.totalInc.toLocaleString('sv-SE')} kr</td>
+            <td style="white-space:nowrap;">
+                ${inv.status !== 'paid' ? `<button class="btn-sm" onclick="markPaid(${inv.clientId},${inv._idx})">Betald</button> ` : ''}
+                <button class="btn-sm" onclick="redownload(${inv.clientId},${inv._idx})">PDF</button>
+            </td>
+        </tr>`;
+    }).join('');
+
+    // Stats
+    const all = getAllInvoices();
+    document.getElementById('statTotal').textContent = all.reduce((s, i) => s + i.totalInc, 0).toLocaleString('sv-SE') + ' kr';
+    document.getElementById('statUnpaid').textContent = all.filter(i => i.status !== 'paid').reduce((s, i) => s + i.totalInc, 0).toLocaleString('sv-SE') + ' kr';
+    document.getElementById('statFollowup').textContent = all.filter(i => i.followupDate && i.followupDate <= today && i.status !== 'paid').length;
+    document.getElementById('statCount').textContent = all.length;
+}
+
+function markPaid(clientId, idx) {
+    allInvoices[clientId][idx].status = 'paid';
+    localStorage.setItem(INVOICES_KEY, JSON.stringify(allInvoices));
+    renderTable();
+    renderNotifications();
+}
+
+function redownload(clientId, idx) {
+    const inv = allInvoices[clientId][idx];
+    // Reuse the PDF generation - open inline
+    const items = inv.items;
+    const invData = inv.invoice || {};
+    const dateStr = new Date(inv.date).toLocaleDateString('sv-SE');
+    const typeLabel = inv.type === 'pending' ? 'Väntande faktura' : 'Faktura';
+    const deliveryNote = inv.deliveryDate ? `<br>Leveransdatum: ${inv.deliveryDate}` : '';
+    const itemRows = items.map(it => `<tr>
+        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;">${escHtml(it.name)}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;text-align:right;">${it.price.toLocaleString('sv-SE')} kr</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;text-align:center;">${it.qty}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;text-align:right;font-weight:700;">${it.sum.toLocaleString('sv-SE')} kr</td>
+    </tr>`).join('');
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Faktura #${inv.nr}</title>
+<style>
+@media print{@page{margin:20mm}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a2e;padding:40px}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px;padding-bottom:24px;border-bottom:2px solid #1a1a2e}
+.logo{font-size:28px;font-weight:800}.logo span{color:#6366f1}
+.doc-info{text-align:right;font-size:13px;color:#555;line-height:1.7}.doc-info strong{display:block;font-size:20px;color:#1a1a2e;margin-bottom:4px}
+.parties{display:flex;gap:40px;margin-bottom:32px}.party{flex:1}.party h3{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:10px}.party p{font-size:14px;line-height:1.7}
+table{width:100%;border-collapse:collapse;margin-bottom:24px}
+th{text-align:left;padding:10px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#888;background:#f8f9fa;border-bottom:2px solid #e5e7eb}th.right{text-align:right}th.center{text-align:center}
+.totals{margin-left:auto;width:300px}.totals .row{display:flex;justify-content:space-between;padding:6px 0;font-size:14px}.totals .row.grand{border-top:2px solid #1a1a2e;padding-top:10px;margin-top:6px;font-size:18px;font-weight:700}
+.terms{margin-top:32px;padding:20px;background:#f8f9fa;border-radius:8px;font-size:13px;line-height:1.8}.terms strong{display:block;margin-bottom:4px;font-size:14px}
+.footer{margin-top:40px;text-align:center;font-size:11px;color:#aaa;border-top:1px solid #e5e7eb;padding-top:16px}
+</style></head><body>
+<div class="header"><div><div class="logo">Virea <span>AB</span></div></div>
+<div class="doc-info"><strong>${typeLabel} #${inv.nr}</strong>Fakturadatum: ${dateStr}${deliveryNote}<br>Förfallodatum: ${inv.dueDate}<br>Ref: ${escHtml((invData.reference || '-'))}</div></div>
+<div class="parties"><div class="party"><h3>Från</h3><p><strong>Virea AB</strong></p></div>
+<div class="party"><h3>Till</h3><p><strong>${escHtml(invData.company || inv.clientName)}</strong><br>${invData.orgnr ? 'Org.nr: '+escHtml(invData.orgnr)+'<br>' : ''}${escHtml(invData.address || '')}<br>${escHtml(invData.postal || '')}</p></div></div>
+<table><thead><tr><th>Produkt</th><th class="right">Pris/st</th><th class="center">Antal</th><th class="right">Summa</th></tr></thead><tbody>${itemRows}</tbody></table>
+<div class="totals"><div class="row"><span>Summa exkl. moms</span><span>${inv.total.toLocaleString('sv-SE')} kr</span></div>
+<div class="row"><span>Moms 25%</span><span>${inv.vat.toLocaleString('sv-SE')} kr</span></div>
+<div class="row grand"><span>Att betala</span><span>${inv.totalInc.toLocaleString('sv-SE')} kr</span></div></div>
+<div class="terms"><strong>Betalningsvillkor</strong>${escHtml(invData.terms || '30 dagar netto')}</div>
+<div class="footer">Virea AB — Faktura #${inv.nr} — ${dateStr}</div>
+</body></html>`;
+
+    const win = window.open('', '_blank');
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => win.print(), 400);
+}
+
+function renderNotifications() {
+    const today = new Date().toISOString().split('T')[0];
+    const all = getAllInvoices();
+    const overdue = all.filter(i => i.followupDate && i.followupDate <= today && i.status !== 'paid');
+
+    const bar = document.getElementById('notifBar');
+    const list = document.getElementById('notifList');
+
+    if (overdue.length === 0) {
+        bar.classList.remove('visible');
+        return;
+    }
+
+    bar.classList.add('visible');
+    list.innerHTML = overdue.map(inv => {
+        return `<div class="notif-item">⚠ Faktura <strong>#${inv.nr}</strong> till <a href="client-profile.html?id=${inv.clientId}&tab=faktura">${escHtml(inv.clientName)}</a> — avstämning ${inv.followupDate} — ${inv.totalInc.toLocaleString('sv-SE')} kr</div>`;
+    }).join('');
+}
+
+renderTable();
+renderNotifications();
+</script>
+
+</body>
+</html>

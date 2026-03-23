@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Butiksförsäljning - Virea AB</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        .btn-contact {
+            background: rgba(99,102,241,0.15);
+            color: #818cf8;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .btn-contact:hover { background: rgba(99,102,241,0.25); }
+
+        .btn-edit {
+            background: rgba(255,255,255,0.06);
+            color: #8b8fa4;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .btn-edit:hover { background: rgba(255,255,255,0.1); color: #e0e0e8; }
+
+        .btn-move {
+            background: rgba(34,197,94,0.12);
+            color: #4ade80;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            white-space: nowrap;
+            margin-left: 4px;
+        }
+        .btn-move:hover { background: rgba(34,197,94,0.2); }
+
+        .inline-status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7280'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            padding-right: 24px;
+        }
+        .inline-status:focus { outline: 2px solid #6366f1; outline-offset: 1px; }
+
+        .status-prospekt { background: rgba(234,179,8,0.12); color: #facc15; }
+        .status-kontaktad { background: rgba(99,102,241,0.15); color: #818cf8; }
+        .status-skickat-prov { background: rgba(139,92,246,0.15); color: #a78bfa; }
+        .status-väntar-på-svar { background: rgba(251,146,60,0.15); color: #fb923c; }
+        .status-intresserad { background: rgba(34,197,94,0.12); color: #4ade80; }
+        .status-återkoppla-senare { background: rgba(255,255,255,0.06); color: #6b7280; }
+        .status-nej-tack { background: rgba(239,68,68,0.12); color: #f87171; }
+
+        .store-link {
+            color: #e0e0e8;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .store-link:hover {
+            color: #818cf8;
+            text-decoration: underline;
+        }
+
+        .inline-comment {
+            border: 1px solid transparent;
+            background: transparent;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+            width: 100%;
+            min-width: 140px;
+            color: #c0c4d4;
+        }
+        .inline-comment::placeholder { color: #4b5068; }
+        .inline-comment:hover {
+            border-color: #303348;
+            background: #1e2030;
+        }
+        .inline-comment:focus {
+            border-color: #6366f1;
+            background: #1e2030;
+            outline: none;
+            color: #e0e0e8;
+        }
+
+        .contacted-name {
+            color: #4ade80;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .contacted-name:hover {
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Nav injected by nav.js -->
+
+<div class="stats">
+    <div class="stat-card">
+        <div class="label">Totalt antal kunder</div>
+        <div class="value" id="totalCustomers">0</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Intresserade</div>
+        <div class="value" id="activeCustomers">0</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Total omsättning</div>
+        <div class="value" id="totalRevenue">0 kr</div>
+    </div>
+</div>
+
+<div class="table-container">
+    <div class="table-header">
+        <h2>Prospekt</h2>
+        <div style="display:flex;gap:10px;">
+            <input type="text" class="search-box" placeholder="Sök kund..." oninput="renderTable()" id="search">
+            <button class="add-btn" onclick="openModal()">+ Ny kund</button>
+        </div>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th onclick="sortBy('name')">Butiks namn</th>
+                <th onclick="sortBy('city')">Stad</th>
+                <th onclick="sortBy('address')">Adress</th>
+                <th>Karta</th>
+                <th onclick="sortBy('status')">Status</th>
+                <th onclick="sortBy('comment')">Kommentar</th>
+                <th onclick="sortBy('revenue')">Omsättning</th>
+                <th onclick="sortBy('contactedBy')">Kontaktad av</th>
+                <th onclick="sortBy('phone')">Telefon</th>
+                <th onclick="sortBy('email')">Email</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="modal">
+    <div class="modal">
+        <h3 id="modalTitle">Lägg till kund</h3>
+        <label>Butiks namn</label>
+        <input type="text" id="f-name">
+        <label>Stad</label>
+        <input type="text" id="f-city">
+        <label>Adress</label>
+        <input type="text" id="f-address">
+        <label>Status</label>
+        <select id="f-status">
+            <option value="Prospekt">Prospekt</option>
+            <option value="Kontaktad">Kontaktad</option>
+            <option value="Skickat prov">Skickat prov</option>
+            <option value="Väntar på svar">Väntar på svar</option>
+            <option value="Intresserad">Intresserad</option>
+            <option value="Återkoppla senare">Återkoppla senare</option>
+            <option value="Nej tack">Nej tack</option>
+        </select>
+        <label>Kommentar</label>
+        <textarea id="f-comment"></textarea>
+        <label>Omsättning (kr)</label>
+        <input type="number" id="f-revenue" min="0">
+        <label>Kontaktad av</label>
+        <input type="text" id="f-contactedBy">
+        <label>Telefon</label>
+        <input type="tel" id="f-phone">
+        <label>Email</label>
+        <input type="email" id="f-email">
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">Avbryt</button>
+            <button class="btn-save" onclick="saveCustomer()">Spara</button>
+        </div>
+    </div>
+</div>
+
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script>
+const currentUser = requireAuth();
+renderNav('prospects');
+
+const STORAGE_KEY = 'claude-salj-customers-v4';
+
+function mapsUrl(name, address, city) {
+    const q = encodeURIComponent(`${name}, ${address}, ${city}`);
+    return `https://www.google.com/maps/search/?api=1&query=${q}`;
+}
+
+let customers = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || [
+    // --- Göteborg centrum ---
+    { id: 1, name: "ICA Nära Heden", city: "Göteborg", address: "Sten Sturegatan 16", status: "Prospekt", comment: "", revenue: 28000000, contactedBy: "", phone: "031 814070", email: "kundkontakt.heden@nara.ica.se" },
+    { id: 2, name: "ICA Nära Haga", city: "Göteborg", address: "Pilgatan 20", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 130065", email: "joakim.x.kjellgren@nara.ica.se" },
+    { id: 3, name: "ICA Focus", city: "Göteborg", address: "Åvägen 42", status: "Prospekt", comment: "", revenue: 292000000, contactedBy: "", phone: "031 7030500", email: "kundkontakt@icafocus.se" },
+    { id: 4, name: "ICA Supermarket Olskroken", city: "Göteborg", address: "Redbergsvägen 14", status: "Prospekt", comment: "", revenue: 159000000, contactedBy: "", phone: "0722 067869", email: "kundkontakt.olskroken@supermarket.ica.se" },
+    { id: 5, name: "ICA Nära Lunden", city: "Göteborg", address: "S:t Pauligatan 42", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 191100", email: "kundkontakt.lunden.goteborg@nara.ica.se" },
+    { id: 6, name: "ICA Nära Kvillebäcken", city: "Göteborg", address: "Borstbindaregatan 12 A", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 170950", email: "daniel.x.sparrfelt@nara.ica.se" },
+    { id: 7, name: "ICA Nära Linnégatan", city: "Göteborg", address: "Linnégatan 41", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 3875180", email: "bjorn.lundh@nara.ica.se" },
+    { id: 8, name: "ICA Kvantum Sannegården", city: "Göteborg", address: "Vintergatan 4", status: "Prospekt", comment: "", revenue: 322000000, contactedBy: "", phone: "031 7794040", email: "kundkontakt.sannegarden@kvantum.ica.se" },
+    { id: 9, name: "ICA Supermarket Majorna", city: "Göteborg", address: "Karl Johansgatan 21", status: "Prospekt", comment: "", revenue: 102000000, contactedBy: "", phone: "031 141713", email: "kontor.majorna@supermarket.ica.se" },
+    { id: 10, name: "ICA Kvantum Munkebäck", city: "Göteborg", address: "Lilla Munkebäcksgatan 2 A", status: "Prospekt", comment: "", revenue: 483000000, contactedBy: "", phone: "031 7556700", email: "helen.collins@kvantum.ica.se" },
+    { id: 11, name: "ICA Nära Träffen", city: "Göteborg", address: "Björcksgatan 53", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 254572", email: "farhads.gholamreza@nara.ica.se" },
+    { id: 12, name: "Maxi ICA Stormarknad Göteborg", city: "Göteborg", address: "Grafiska Vägen 16", status: "Prospekt", comment: "", revenue: 679000000, contactedBy: "", phone: "031 7466100", email: "kundkontakt.goteborg@maxi.ica.se" },
+    { id: 13, name: "ICA Nära Effkå", city: "Göteborg", address: "Kungsladugårdsg 15", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 149485", email: "therese.kanterdickson@nara.ica.se" },
+    { id: 14, name: "ICA Nära Toppen", city: "Göteborg", address: "Kungsladugårdsgatan 104", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 148688", email: "lemai.quach@nara.ica.se" },
+    { id: 15, name: "ICA Nära Stabbetorget", city: "Göteborg", address: "Stabbetorget 1", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 251218", email: "rebecca.jonsson@nara.ica.se" },
+
+    // --- Västra Frölunda ---
+    { id: 16, name: "ICA Kvantum Frölunda", city: "Västra Frölunda", address: "Radiovägen 5", status: "Prospekt", comment: "", revenue: 214000000, contactedBy: "", phone: "031 477800", email: "kundkontakt.vastrafrolunda@kvantum.ica.se" },
+    { id: 17, name: "ICA Supermarket Frölunda", city: "Västra Frölunda", address: "Smyckegatan 1", status: "Prospekt", comment: "", revenue: 37609000, contactedBy: "", phone: "0736 318512", email: "charlotte.ohlsson@supermarket.ica.se" },
+    { id: 18, name: "ICA Nära Fiskebäck", city: "Västra Frölunda", address: "Mungårdsgatan 21", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 290028", email: "thomas.renstrom@nara.ica.se" },
+    { id: 19, name: "ICA Supermarket Åkeredshallen", city: "Västra Frölunda", address: "Spektrumsgatan 1", status: "Prospekt", comment: "", revenue: 75000000, contactedBy: "", phone: "031 280801", email: "kontakt.akeredshallen@supermarket.ica.se" },
+    { id: 20, name: "Maxi ICA Stormarknad Högsbo", city: "Västra Frölunda", address: "Lona Knapes gata 1", status: "Prospekt", comment: "", revenue: 783000000, contactedBy: "", phone: "031 7127100", email: "kundkontakt.hogsbo@maxi.ica.se" },
+    { id: 21, name: "ICA Nära Nya Varvet", city: "Västra Frölunda", address: "Starbåtsgatan 1", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 297401", email: "magnus.korle@nara.ica.se" },
+
+    // --- Hisings Backa ---
+    { id: 22, name: "ICA Kvantum Bäckebol", city: "Hisings Backa", address: "Transportgatan 19-21", status: "Prospekt", comment: "", revenue: 160000000, contactedBy: "", phone: "031 880688", email: "jorgen.kjerstensson@kvantum.ica.se" },
+    { id: 23, name: "ICA Supermarket Brunnsbo", city: "Hisings Backa", address: "Brunnsbotorget 3", status: "Prospekt", comment: "", revenue: 57000000, contactedBy: "", phone: "031 506580", email: "kenta.l.bratt@supermarket.ica.se" },
+
+    // --- Angered ---
+    { id: 24, name: "Maxi ICA Stormarknad Angered", city: "Angered", address: "Angered Centrum", status: "Prospekt", comment: "", revenue: 297000000, contactedBy: "", phone: "031 3325600", email: "kundkontakt.angered@maxi.ica.se" },
+    { id: 25, name: "ICA Supermarket Gårdsten", city: "Angered", address: "Muskotgatan 5", status: "Prospekt", comment: "", revenue: 44000000, contactedBy: "", phone: "031 3332750", email: "kontor.gardsten@supermarket.ica.se" },
+    { id: 26, name: "ICA Supermarket Hjällbo", city: "Angered", address: "Hjällbo Centrum", status: "Prospekt", comment: "", revenue: 44000000, contactedBy: "", phone: "031 460130", email: "alma.draganovic@supermarket.ica.se" },
+
+    // --- Torslanda ---
+    { id: 27, name: "Maxi ICA Stormarknad Torslanda", city: "Torslanda", address: "Gamla Flygplatsvägen 60", status: "Prospekt", comment: "", revenue: 455000000, contactedBy: "", phone: "031 7205600", email: "kundkontakt.torslanda@maxi.ica.se" },
+    { id: 28, name: "ICA Nära Björlanda", city: "Torslanda", address: "Linas Lycka 2", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 925295", email: "marie.backman@nara.ica.se" },
+
+    // --- Borås ---
+    { id: 29, name: "ICA City Centrum", city: "Borås", address: "Allégatan 21", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "033 444300", email: "centrum@citybutikerna.se" },
+    { id: 30, name: "ICA City Knalleland", city: "Borås", address: "Skaraborgsvägen 25", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "033 447700", email: "knalleland@citybutikerna.se" },
+    { id: 31, name: "Maxi ICA Stormarknad Borås", city: "Borås", address: "Trandögatan 16", status: "Prospekt", comment: "", revenue: 699000000, contactedBy: "", phone: "033 211800", email: "kundkontakt.boras@maxi.ica.se" },
+    { id: 32, name: "ICA Supermarket Knalleland", city: "Borås", address: "Bergslenagatan 7", status: "Prospekt", comment: "", revenue: 83000000, contactedBy: "", phone: "033 211300", email: "mikael.carlsson@supermarket.ica.se" },
+    { id: 33, name: "ICA Supermarket Byttorp", city: "Borås", address: "Vindelgatan 45", status: "Prospekt", comment: "", revenue: 83875000, contactedBy: "", phone: "033 413811", email: "christoffer.x.jonsson@supermarket.ica.se" },
+    { id: 34, name: "ICA Nära Hulta", city: "Borås", address: "Trallingsgatan 1", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "033 3484340", email: "gabriel.bjorkman@nara.ica.se" },
+    { id: 35, name: "ICA Nära Pilen", city: "Borås", address: "Guldbrandsgatan 12", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "033 156300", email: "joakim.olsson@nara.ica.se" },
+    { id: 36, name: "ICA City Brämhult", city: "Brämhult", address: "Brämhults Torg", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "033 230600", email: "bramhult@citybutikerna.se" },
+    { id: 37, name: "ICA Nära Hjärtat", city: "Gånghester", address: "Stora Vägen 2", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "033 256056", email: "patric.malm@nara.ica.se" },
+    { id: 38, name: "ICA Supermarket Köpet", city: "Sandared", address: "Boråsvägen 3", status: "Prospekt", comment: "", revenue: 85000000, contactedBy: "", phone: "033 255019", email: "oskar.farjhage@supermarket.ica.se" },
+    { id: 39, name: "ICA City Fristad", city: "Fristad", address: "Fristadstorget 10", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "033 210400", email: "fristad@citybutikerna.se" },
+    { id: 40, name: "ICA Nära Hedared", city: "Hedared", address: "Vemmenhultsvägen 2", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "033 242020", email: "emelie.samuelsson@nara.ica.se" },
+
+    // --- Trollhättan ---
+    { id: 41, name: "ICA Supermarket Matmor", city: "Trollhättan", address: "Kungsgatan 30", status: "Prospekt", comment: "", revenue: 76877000, contactedBy: "", phone: "0520 12550", email: "info@matmor.se" },
+    { id: 42, name: "ICA Kvantum Jätten", city: "Trollhättan", address: "Skogmansgatan 22", status: "Prospekt", comment: "", revenue: 266000000, contactedBy: "", phone: "0520 405000", email: "fredrik.nyqvist@kvantum.ica.se" },
+    { id: 43, name: "ICA Supermarket Sylte", city: "Trollhättan", address: "Sylte Center", status: "Prospekt", comment: "", revenue: 62629000, contactedBy: "", phone: "0520 470580", email: "thomas.svensson@supermarket.ica.se" },
+    { id: 44, name: "Maxi ICA Stormarknad Trollhättan", city: "Trollhättan", address: "Överby Köpcentrum", status: "Prospekt", comment: "", revenue: 372000000, contactedBy: "", phone: "0520 488300", email: "kundkontakt.trollhattan@maxi.ica.se" },
+    { id: 45, name: "ICA Nära Kryddlunds", city: "Trollhättan", address: "Slätternavägen 1", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0520 424012", email: "kenneth.manvik@nara.ica.se" },
+
+    // --- Uddevalla ---
+    { id: 46, name: "ICA Supermarket Spara", city: "Uddevalla", address: "Odengatan 3", status: "Prospekt", comment: "", revenue: 174418000, contactedBy: "", phone: "0522 653939", email: "arthur.hansson@supermarket.ica.se" },
+    { id: 47, name: "ICA Kvantum Uddevalla", city: "Uddevalla", address: "Göteborgsvägen 18", status: "Prospekt", comment: "", revenue: 171000000, contactedBy: "", phone: "0522 645464", email: "kundkontakt.uddevalla@kvantum.ica.se" },
+    { id: 48, name: "ICA Nära Dalaberg", city: "Uddevalla", address: "Lövskogsgatan 8", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0522 70945", email: "christopher.karlberg@nara.ica.se" },
+    { id: 49, name: "ICA Maxi Uddevalla", city: "Uddevalla", address: "Torp Köpcentrum", status: "Prospekt", comment: "", revenue: 447000000, contactedBy: "", phone: "0522 653700", email: "kundkontakt.torp@kvantum.ica.se" },
+    { id: 50, name: "ICA Supermarket Ljungskile", city: "Ljungskile", address: "Vällebergsvägen 27", status: "Prospekt", comment: "", revenue: 126000000, contactedBy: "", phone: "0522 261230", email: "kundkontakt.ljungskile@supermarket.ica.se" },
+
+    // --- Skövde ---
+    { id: 51, name: "ICA Nära Norrmalm", city: "Skövde", address: "Gustav Adolfs gata 6", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0500 415656", email: "magnus.friberg@nara.ica.se" },
+    { id: 52, name: "ICA Kvantum Skövde", city: "Skövde", address: "G:a Kungsvägen 54", status: "Prospekt", comment: "", revenue: 218000000, contactedBy: "", phone: "0500 478830", email: "urban.andersson@kvantum.ica.se" },
+    { id: 53, name: "Maxi ICA Stormarknad Skövde", city: "Skövde", address: "Köpmannagatan 3", status: "Prospekt", comment: "", revenue: 406000000, contactedBy: "", phone: "0500 445300", email: "kundkontakt.skovde@maxi.ica.se" },
+    { id: 54, name: "ICA Nära Skultorp", city: "Skövde", address: "Klagstorpsvägen 6", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0500 433038", email: "dejan.vulevic@nara.ica.se" },
+    { id: 55, name: "ICA Nära Blomman", city: "Skövde", address: "Hästskovägen 6", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0500 461650", email: "linus.kaminsky@nara.ica.se" },
+
+    // --- Tibro / Tidaholm / Hjo ---
+    { id: 56, name: "ICA Supermarket Tibro", city: "Tibro", address: "Alletorget 8", status: "Prospekt", comment: "", revenue: 157000000, contactedBy: "", phone: "0504 787800", email: "annelie.magnusson@supermarket.ica.se" },
+    { id: 57, name: "ICA Nära City Livs", city: "Tibro", address: "Storgatan 10", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0504 20209", email: "kalle.johansson@nara.ica.se" },
+    { id: 58, name: "ICA Kvantum Tidaholm", city: "Tidaholm", address: "Järnvägsgatan 5", status: "Prospekt", comment: "", revenue: 185000000, contactedBy: "", phone: "0502 18800", email: "sverker.josefsson@kvantum.ica.se" },
+    { id: 59, name: "ICA Supermarket Hjo", city: "Hjo", address: "Vasagatan 1", status: "Prospekt", comment: "", revenue: 145000000, contactedBy: "", phone: "0503 13020", email: "christer.larsson@supermarket.ica.se" },
+    { id: 60, name: "ICA Nära Tidan", city: "Tidan", address: "Vårlundavägen 5", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "", email: "" },
+    { id: 61, name: "ICA Nära Timmersdala", city: "Timmersdala", address: "Mariestadsvägen 15", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0511 81001", email: "peter.lindholm@nara.ica.se" },
+
+    // --- Falköping ---
+    { id: 62, name: "ICA Supermarket Falköping", city: "Falköping", address: "Falegatan 11A", status: "Prospekt", comment: "", revenue: 99000000, contactedBy: "", phone: "0515 776470", email: "daniel.gustafsson@supermarket.ica.se" },
+    { id: 63, name: "Maxi ICA Stormarknad Falköping", city: "Falköping", address: "Lönnerbladsgatan 2", status: "Prospekt", comment: "", revenue: 310000000, contactedBy: "", phone: "0515 776440", email: "kundkontakt.falkoping@maxi.ica.se" },
+    { id: 64, name: "ICA Matfocus Slutarp", city: "Kinnarp", address: "Samuels gränd 1", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0515 33119", email: "anna.skoglund@nara.ica.se" },
+    { id: 65, name: "ICA Nära Floby", city: "Floby", address: "Köpmangatan 2", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0515 40550", email: "hakan.persson@nara.ica.se" },
+    { id: 66, name: "ICA Nära Evaldssons", city: "Åsarp", address: "Centrumvägen 33", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0515 50015", email: "fredric.evaldsson@nara.ica.se" },
+
+    // --- Vänersborg ---
+    { id: 67, name: "ICA Kvantum Vänersborg", city: "Vänersborg", address: "Brogatan 4", status: "Prospekt", comment: "", revenue: 229000000, contactedBy: "", phone: "0521 260610", email: "anders.blomster@kvantum.ica.se" },
+    { id: 68, name: "ICA Supermarket Älgen", city: "Vargön", address: "Storegårdsvägen 4", status: "Prospekt", comment: "", revenue: 68000000, contactedBy: "", phone: "0521 224906", email: "christoffer.russo@supermarket.ica.se" },
+    { id: 69, name: "ICA Nära Cypressen", city: "Brålanda", address: "Storgatan 21", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0521 30028", email: "carina.karlsson@nara.ica.se" },
+
+    // --- Lidköping ---
+    { id: 70, name: "ICA Kvantum Hjertberg", city: "Lidköping", address: "Framnäsvägen 1", status: "Prospekt", comment: "", revenue: 475000000, contactedBy: "", phone: "0510 82000", email: "anders.fredriksson@kvantum.ica.se" },
+    { id: 71, name: "ICA Nära Klockan", city: "Lidköping", address: "Rådagatan 31", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0510 60375", email: "per-arne.dahl@nara.ica.se" },
+    { id: 72, name: "ICA Supermarket Margretelund", city: "Lidköping", address: "Floragatan 8", status: "Prospekt", comment: "", revenue: 88000000, contactedBy: "", phone: "0510 485850", email: "maria.lexberg@supermarket.ica.se" },
+    { id: 73, name: "ICA Nära Vinninga", city: "Vinninga", address: "Varavägen 2", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0510 50006", email: "" },
+
+    // --- Götene / Skara / Vara ---
+    { id: 74, name: "ICA Kvantum Götene", city: "Götene", address: "Lidköpingsv 9", status: "Prospekt", comment: "", revenue: 199000000, contactedBy: "", phone: "0511 345700", email: "johan.olofson@kvantum.ica.se" },
+    { id: 75, name: "ICA Kvantum Munken", city: "Skara", address: "Skaraborgsgatan 28", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0511 342300", email: "jonas.skara@kvantum.ica.se" },
+    { id: 76, name: "ICA Kvantum Vara", city: "Vara", address: "Torggatan 48", status: "Prospekt", comment: "", revenue: 173000000, contactedBy: "", phone: "0512 797050", email: "klas.peterson@kvantum.ica.se" },
+    { id: 77, name: "ICA Supermarket Grästorp", city: "Grästorp", address: "Torggatan 12", status: "Prospekt", comment: "", revenue: 73000000, contactedBy: "", phone: "0514 10081", email: "ulrika.litzell@supermarket.ica.se" },
+    { id: 78, name: "ICA Nära Sahlins", city: "Kvänum", address: "Järnvägsgatan 5", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0512 92010", email: "lars-olof.sahlin@nara.ica.se" },
+    { id: 79, name: "ICA Nära Karl-Åkes Storköp", city: "Stora Levene", address: "Storgatan 20", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0512 797770", email: "sara.karlsson@nara.ica.se" },
+    { id: 80, name: "ICA Nära Axvall", city: "Axvall", address: "Bangatan 5", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0511 62620", email: "oskar.x.skalstad@nara.ica.se" },
+    { id: 81, name: "ICA Nära BK-Hallen", city: "Vedum", address: "Larvsvägen 5", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0512 40061", email: "anna.nilsson@nara.ica.se" },
+
+    // --- Alingsås ---
+    { id: 82, name: "ICA Nära Åkanten", city: "Alingsås", address: "Stationsgatan 30", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0322 665530", email: "karin.persson@nara.ica.se" },
+    { id: 83, name: "Maxi ICA Stormarknad Alingsås", city: "Alingsås", address: "Hemvägen 19", status: "Prospekt", comment: "", revenue: 634000000, contactedBy: "", phone: "0322 78400", email: "kundkontakt.alingsas@maxi.ica.se" },
+    { id: 84, name: "ICA Supermarket Noltorp", city: "Alingsås", address: "Noltorps Centrum", status: "Prospekt", comment: "", revenue: 69451000, contactedBy: "", phone: "0322 665569", email: "hakan.x.engstrom@supermarket.ica.se" },
+    { id: 85, name: "ICA Nära Stadsskogen", city: "Alingsås", address: "Rubingatan 1", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0322 285810", email: "jaana.frobose@nara.ica.se" },
+    { id: 86, name: "ICA Nära Gabrielssons", city: "Vårgårda", address: "Ljurhalla", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "", email: "" },
+    { id: 87, name: "ICA Supermarket Sollebrunn", city: "Sollebrunn", address: "Trollhättevägen 6", status: "Prospekt", comment: "", revenue: 82860000, contactedBy: "", phone: "0322 83730", email: "marcus.brunnhage@supermarket.ica.se" },
+    { id: 88, name: "ICA Supermarket Nossebro", city: "Nossebro", address: "Sturegatan 9", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0512 50016", email: "christer.kjall@supermarket.ica.se" },
+    { id: 89, name: "ICA Nära Ljung", city: "Ljung", address: "Stationsvägen 14", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0513 50119", email: "emma.mackay@nara.ica.se" },
+    { id: 90, name: "ICA Supermarket Herrljunga", city: "Herrljunga", address: "Magasinsgatan 6", status: "Prospekt", comment: "", revenue: 53000000, contactedBy: "", phone: "0513 22270", email: "peter.andersson@supermarket.ica.se" },
+
+    // --- Kungälv ---
+    { id: 91, name: "Maxi ICA Stormarknad Kungälv", city: "Kungälv", address: "Gymnasiegatan 8", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0303 15000", email: "Kundkontakt.kungalv@maxi.ica.se" },
+    { id: 92, name: "ICA Nära Skafferiet", city: "Kungälv", address: "Ivar Claessonsgatan 34", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "076 6973975", email: "robin.x.granqvist@nara.ica.se" },
+    { id: 93, name: "ICA Nära Kode", city: "Kode", address: "Kodevägen 11-13", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0303 51650", email: "arnold.eriksson@nara.ica.se" },
+
+    // --- Mölndal ---
+    { id: 94, name: "ICA Kvantum Mölndal", city: "Mölndal", address: "Barnhemsgatan 22", status: "Prospekt", comment: "", revenue: 225000000, contactedBy: "", phone: "031 7872700", email: "magnus.alkmark@kvantum.ica.se" },
+    { id: 95, name: "ICA Nära Rävekärr", city: "Mölndal", address: "Fågelbergsgatan 2", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 277575", email: "kent.pettersson@nara.ica.se" },
+    { id: 96, name: "ICA Nära Pedagogen Park", city: "Mölndal", address: "Kunskapsgatan 8", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 3824329", email: "mikael.ferm@nara.ica.se" },
+    { id: 97, name: "ICA Supermarket Lindome", city: "Lindome", address: "Almåsgången 1", status: "Prospekt", comment: "", revenue: 77000000, contactedBy: "", phone: "031 997170", email: "linda.dahlin@supermarket.ica.se" },
+
+    // --- Mariestad ---
+    { id: 98, name: "ICA Kvantum Mariestad", city: "Mariestad", address: "Viktoriagatan 20", status: "Prospekt", comment: "", revenue: 263000000, contactedBy: "", phone: "0501 278000", email: "info@oxen.nu" },
+    { id: 99, name: "ICA Nära Lyrestad", city: "Lyrestad", address: "Järnvägsgatan 1", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0501 50027", email: "pontus.berlin@nara.ica.se" },
+    { id: 100, name: "ICA Supermarket Töreboda", city: "Töreboda", address: "Drottninggatan 2", status: "Prospekt", comment: "", revenue: 110000000, contactedBy: "", phone: "0506 19200", email: "jan.2.andersson@supermarket.ica.se" },
+    { id: 101, name: "ICA Supermarket Riddaren", city: "Hova", address: "Torggatan 10", status: "Prospekt", comment: "", revenue: 65000000, contactedBy: "", phone: "0506 30001", email: "johan.hellstrom@supermarket.ica.se" },
+    { id: 102, name: "ICA Supermarket Gullspång", city: "Gullspång", address: "Storgatan 26", status: "Prospekt", comment: "", revenue: 70554000, contactedBy: "", phone: "0551 20003", email: "peter.gullspang@supermarket.ica.se" },
+
+    // --- Lerum ---
+    { id: 103, name: "ICA Nära Hallsås", city: "Lerum", address: "Kring-alles väg 52", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0302 10203", email: "martin.zettergren@nara.ica.se" },
+    { id: 104, name: "ICA Supermarket Servett", city: "Lerum", address: "Almekärrsvägen 1", status: "Prospekt", comment: "", revenue: 73198000, contactedBy: "", phone: "0302 694310", email: "magnus.johansson@supermarket.ica.se" },
+    { id: 105, name: "ICA Kvantum Lerum", city: "Lerum", address: "Hulans Torg 1", status: "Prospekt", comment: "", revenue: 555000000, contactedBy: "", phone: "0302 522700", email: "kundkontakt.lerum@kvantum.ica.se" },
+    { id: 106, name: "ICA Supermarket Floda", city: "Floda", address: "Rurik Holms väg 8-10", status: "Prospekt", comment: "", revenue: 104000000, contactedBy: "", phone: "0302 35900", email: "daniel.wennroth@supermarket.ica.se" },
+
+    // --- Partille ---
+    { id: 107, name: "Maxi ICA Stormarknad Partille", city: "Partille", address: "Parallellvägen 1", status: "Prospekt", comment: "", revenue: 415000000, contactedBy: "", phone: "031 3400500", email: "kundkontakt.partille@maxi.ica.se" },
+    { id: 108, name: "ICA Supermarket Prima", city: "Sävedalen", address: "Skolvägen 7", status: "Prospekt", comment: "", revenue: 97854000, contactedBy: "", phone: "031 3408780", email: "marie.alexandersson@supermarket.ica.se" },
+    { id: 109, name: "ICA Supermarket Vallhamra", city: "Sävedalen", address: "Vallhamra Torg 1B", status: "Prospekt", comment: "", revenue: 102292000, contactedBy: "", phone: "031 3408830", email: "kundkontakt.vallhamra@supermarket.ica.se" },
+
+    // --- Stenungsund ---
+    { id: 110, name: "ICA Kvantum Stenungsund", city: "Stenungsund", address: "Vassgatan 1", status: "Prospekt", comment: "", revenue: 241000000, contactedBy: "", phone: "0303 726200", email: "robert.larsson@kvantum.ica.se" },
+    { id: 111, name: "ICA Supermarket Stenungsund", city: "Stenungsund", address: "Uppegårdsvägen 2", status: "Prospekt", comment: "", revenue: 71000000, contactedBy: "", phone: "0303 727080", email: "svante.karlsson@supermarket.ica.se" },
+    { id: 112, name: "ICA Nära Jörlanda", city: "Jörlanda", address: "Ranehedsvägen 2", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0303 52035", email: "linda.karlsson@nara.ica.se" },
+
+    // --- Strömstad / Tanum ---
+    { id: 113, name: "ICA Nära Strömstad", city: "Strömstad", address: "S:a Hamngatan 8", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0526 14400", email: "niclas.x.strandell@nara.ica.se" },
+    { id: 114, name: "ICA Kvantum Strömstad", city: "Strömstad", address: "Prästängsvägen 2", status: "Prospekt", comment: "", revenue: 246000000, contactedBy: "", phone: "0526 717400", email: "simon.hansson@kvantum.ica.se" },
+    { id: 115, name: "ICA Nära Sydkoster", city: "Sydkoster", address: "Torget 2", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0526 20035", email: "kundkontakt.sydkoster@nara.ica.se" },
+    { id: 116, name: "ICA Supermarket Hedemyrs", city: "Tanumshede", address: "Affärsvägen 12", status: "Prospekt", comment: "", revenue: 156863000, contactedBy: "", phone: "0525 29140", email: "jacob.bengtsson@supermarket.ica.se" },
+    { id: 117, name: "ICA Nära Grebbestad", city: "Grebbestad", address: "Hamnplan", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0733 213199", email: "magnus.berglund@nara.ica.se" },
+    { id: 118, name: "ICA Nära Östads Livs", city: "Bullaren", address: "Byvägen 1", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0525 50022", email: "par.andersson@nara.ica.se" },
+    { id: 119, name: "ICA Supermarket Skutan", city: "Hamburgsund", address: "Skutan 1", status: "Prospekt", comment: "", revenue: 86000000, contactedBy: "", phone: "0525 64800", email: "lars.gunnarsson@supermarket.ica.se" },
+
+    // --- Kungsbacka ---
+    { id: 120, name: "ICA Kvantum Kungsbacka", city: "Kungsbacka", address: "Varlagård 16", status: "Prospekt", comment: "", revenue: 279000000, contactedBy: "", phone: "0300 51150", email: "erika.lindberg@kvantum.ica.se" },
+    { id: 121, name: "Maxi ICA Stormarknad Kungsbacka", city: "Kungsbacka", address: "Hedebrovägen 50", status: "Prospekt", comment: "", revenue: 615000000, contactedBy: "", phone: "0300 33600", email: "info.kungsbacka@maxi.ica.se" },
+    { id: 122, name: "ICA Supermarket Vallda", city: "Vallda", address: "Egnahemsvägen 7", status: "Prospekt", comment: "", revenue: 89044000, contactedBy: "", phone: "0300 25444", email: "anders.fureh@supermarket.ica.se" },
+    { id: 123, name: "ICA Supermarket Åsa", city: "Åsa", address: "Åsa Stationsväg 13", status: "Prospekt", comment: "", revenue: 100000000, contactedBy: "", phone: "0340 656010", email: "anna.lowstrom@supermarket.ica.se" },
+
+    // --- Varberg ---
+    { id: 124, name: "ICA Kvantum Varberg", city: "Varberg", address: "Torggatan 26", status: "Prospekt", comment: "", revenue: 291000000, contactedBy: "", phone: "0340 666700", email: "ica.varberg@kvantum.ica.se" },
+    { id: 125, name: "ICA Nära NG:s Snabbköp", city: "Varberg", address: "Magasinsgatan 64", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "", email: "" },
+    { id: 126, name: "ICA Hajen Lågpris", city: "Varberg", address: "Monarkvägen 2", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "", email: "" },
+    { id: 127, name: "ICA Nära Matboden", city: "Varberg", address: "Lindbergsvägen 18", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "", email: "" },
+    { id: 128, name: "ICA Supermarket Tvååker", city: "Tvååker", address: "Alvägen 5", status: "Prospekt", comment: "", revenue: 84132000, contactedBy: "", phone: "0340 40030", email: "daniel.tornblad@supermarket.ica.se" },
+    { id: 129, name: "ICA Nära Rolfstorp", city: "Rolfstorp", address: "Toers väg 1", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "", email: "" },
+    { id: 130, name: "ICA Supermarket Derome", city: "Veddige", address: "Bjurumsvägen 1", status: "Prospekt", comment: "", revenue: 64199000, contactedBy: "", phone: "0340 31100", email: "marie.romell@supermarket.ica.se" },
+    { id: 131, name: "ICA Nära Bua", city: "Bua", address: "Värö Center", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "", email: "" },
+    { id: 132, name: "ICA Nära Zachrisson", city: "Väröbacka", address: "Varbergsvägen 2", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "", email: "" },
+
+    // --- Härryda ---
+    { id: 133, name: "ICA Kvantum Landvetter", city: "Landvetter", address: "Brattåstorget 3", status: "Prospekt", comment: "", revenue: 295000000, contactedBy: "", phone: "031 977070", email: "kundkontakt.landvetter@kvantum.ica.se" },
+    { id: 134, name: "ICA Nära Mölnlycke", city: "Mölnlycke", address: "Lövskogsvägen 1", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 886288", email: "johan.heden@nara.ica.se" },
+    { id: 135, name: "ICA Nära Djupedalsäng", city: "Mölnlycke", address: "Råstensvägen 1", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 881151", email: "ulf.svensson@nara.ica.se" },
+    { id: 136, name: "ICA Nära Hindås", city: "Hindås", address: "Hindås Stationsväg 43", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0301 10015", email: "jonas.malmros@nara.ica.se" },
+
+    // --- Mark ---
+    { id: 137, name: "ICA Nära Horred", city: "Horred", address: "Varbergsvägen 436", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0320 18010", email: "markus.jernberg@nara.ica.se" },
+    { id: 138, name: "ICA Kvantum MM - Skene", city: "Skene", address: "Klevagårdsgatan 3", status: "Prospekt", comment: "", revenue: 249000000, contactedBy: "", phone: "0320 30630", email: "martin.ivarson@kvantum.ica.se" },
+    { id: 139, name: "ICA Nära Hyssna", city: "Hyssna", address: "Göteborgsvägen 102", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0320 38040", email: "emelie.carlsson@nara.ica.se" },
+    { id: 140, name: "ICA Nära Fritsla", city: "Fritsla", address: "Kommunalhusvägen 4", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0320 70047", email: "henrik.x.johansson@nara.ica.se" },
+
+    // --- Lysekil ---
+    { id: 141, name: "ICA Supermarket Lysekil", city: "Lysekil", address: "Landsvägsgatan 17", status: "Prospekt", comment: "", revenue: 108000000, contactedBy: "", phone: "0523 665590", email: "albert.pettersson@supermarket.ica.se" },
+    { id: 142, name: "ICA Nära Grundsund", city: "Grundsund", address: "Lönndalsvägen 45", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0523 21105", email: "anders.widen@nara.ica.se" },
+    { id: 143, name: "ICA Nära Brastad", city: "Brastad", address: "Hallindenvägen 16", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0523 40134", email: "caroline.wessberg@nara.ica.se" },
+
+    // --- Ale ---
+    { id: 144, name: "ICA Svenssons Livs Alvhem", city: "Alvhem", address: "Adolf Fredriks väg 14", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0303 336003", email: "carina.mortensen@nara.ica.se" },
+    { id: 145, name: "ICA Supermarket Älvängen", city: "Älvängen", address: "Svensktorpsvägen 15", status: "Prospekt", comment: "", revenue: 75000000, contactedBy: "", phone: "0303 700710", email: "info.alvangen@supermarket.ica.se" },
+    { id: 146, name: "ICA Kvantum Ale", city: "Nödinge", address: "Ale Torg 7", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0303 97500", email: "mikael.sagstrom@kvantum.ica.se" },
+
+    // --- Orust ---
+    { id: 147, name: "ICA Supermarket Pärlan", city: "Henån", address: "Hamntorget", status: "Prospekt", comment: "", revenue: 138678000, contactedBy: "", phone: "0304 32770", email: "pernilla.olofsson@supermarket.ica.se" },
+    { id: 148, name: "ICA Supermarket Varekilsboden", city: "Varekil", address: "Hedströms väg 1", status: "Prospekt", comment: "", revenue: 88140000, contactedBy: "", phone: "0304 10158", email: "stephan.berntsson@supermarket.ica.se" },
+
+    // --- Tjörn ---
+    { id: 149, name: "ICA Supermarket Kållekärr", city: "Kållekärr", address: "Kållekärr 50", status: "Prospekt", comment: "", revenue: 86891000, contactedBy: "", phone: "0304 660026", email: "johan.olsson@supermarket.ica.se" },
+    { id: 150, name: "ICA Nära Höviksnäs", city: "Höviksnäs", address: "Höviksnäsvägen 2", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0304 661630", email: "camilla.busck@nara.ica.se" },
+    { id: 151, name: "ICA Supermarket Nordeviks", city: "Skärhamn", address: "Kroksdalsvägen 4", status: "Prospekt", comment: "", revenue: 218000000, contactedBy: "", phone: "0304 676900", email: "anders.nordevik@supermarket.ica.se" },
+    { id: 152, name: "ICA Nära Rorsman", city: "Rönnäng", address: "Allévägen 5", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0304 672001", email: "karolina.werinius@nara.ica.se" },
+    { id: 153, name: "ICA Nära Dyröboden", city: "Dyrön", address: "Hamnvägen 46", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "072 2315750", email: "butik.dyroboden@nara.ica.se" },
+
+    // --- Munkedal ---
+    { id: 154, name: "ICA Nära Munkedalshallen", city: "Munkedal", address: "Stationsvägen 2", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0524 10366", email: "erik.svedmark@nara.ica.se" },
+    { id: 155, name: "ICA Nära Dingle", city: "Dingle", address: "Järnvägsgatan 4", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0524 18970", email: "rickard.olsson@nara.ica.se" },
+    { id: 156, name: "ICA Nära Arwidssons", city: "Hällevadsholm", address: "Norra Bohusvägen 1", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0524 50001", email: "alexander.nilsson@nara.ica.se" },
+
+    // --- Sotenäs ---
+    { id: 157, name: "ICA Supermarket Skeppet", city: "Kungshamn", address: "Skeppartorget", status: "Prospekt", comment: "", revenue: 102868000, contactedBy: "", phone: "0523 666040", email: "maria.jarleklint@supermarket.ica.se" },
+    { id: 158, name: "ICA Nära Ankaret", city: "Smögen", address: "Hasselösundsvägen", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0523 30500", email: "emma.wetzo@nara.ica.se" },
+
+    // --- Lilla Edet ---
+    { id: 159, name: "ICA Supermarket Boström", city: "Lilla Edet", address: "Göteborgsvägen 49", status: "Prospekt", comment: "", revenue: 190866000, contactedBy: "", phone: "0520 473550", email: "patrik.johansson@supermarket.ica.se" },
+    { id: 160, name: "ICA Nära Matkassen Lödöse", city: "Lödöse", address: "Centrum", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0520 660010", email: "lars.hansson@nara.ica.se" },
+
+    // --- Mellerud ---
+    { id: 161, name: "ICA Supermarket Kronan", city: "Mellerud", address: "Landsvägsgatan 53", status: "Prospekt", comment: "", revenue: 54777000, contactedBy: "", phone: "0530 10633", email: "micke.andersson@supermarket.ica.se" },
+    { id: 162, name: "ICA Nära Grinstads Lanthandel", city: "Grinstad", address: "Grinstad", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0530 50050", email: "anko.boskma@nara.ica.se" },
+
+    // --- Bengtsfors ---
+    { id: 163, name: "ICA Supermarket Bengtsfors", city: "Bengtsfors", address: "Centrumvägen 10", status: "Prospekt", comment: "", revenue: 87000000, contactedBy: "", phone: "0531 10338", email: "johan.cardell@supermarket.ica.se" },
+    { id: 164, name: "ICA Nära Billingsfors", city: "Billingsfors", address: "Stenebyvägen 13", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0531 30030", email: "william.cander@nara.ica.se" },
+    { id: 165, name: "ICA Nära Optimisten", city: "Gustavsfors", address: "Årjängsvägen 31", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0531 20001", email: "kundkontakt.gustavsfors@nara.ica.se" },
+
+    // --- Åmål ---
+    { id: 166, name: "ICA Supermarket Lejonet", city: "Åmål", address: "Mellanbrogatan 10", status: "Prospekt", comment: "", revenue: 124000000, contactedBy: "", phone: "0532 608660", email: "susanne.enell@supermarket.ica.se" },
+
+    // --- Svenljunga ---
+    { id: 167, name: "ICA Kvantum Svenljunga", city: "Svenljunga", address: "Kinnagatan 3", status: "Prospekt", comment: "", revenue: 180000000, contactedBy: "", phone: "0325 619880", email: "rasmus.bynander@kvantum.ica.se" },
+    { id: 168, name: "ICA Nära Monicanders", city: "Mjöbäck", address: "Öxabäcksvägen 7", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0325 34004", email: "jonas.enoksson@nara.ica.se" },
+
+    // --- Tranemo ---
+    { id: 169, name: "ICA Kvantum Tranemo", city: "Tranemo", address: "Storgatan 32", status: "Prospekt", comment: "", revenue: 126000000, contactedBy: "", phone: "0325 70480", email: "peter.hallen@kvantum.ica.se" },
+    { id: 170, name: "ICA Nära Mathyttan", city: "Limmared", address: "Torget", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0325 71024", email: "rasmus.rosengren@nara.ica.se" },
+    { id: 171, name: "ICA Nära Länghem", city: "Länghem", address: "Boråsvägen 26", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0325 40021", email: "taghi.rashti@nara.ica.se" },
+    { id: 172, name: "ICA Nära Dalstorp", city: "Dalstorp", address: "Ulricehamnsvägen 15", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0321 60037", email: "marcus.alexandersson@nara.ica.se" },
+
+    // --- Ulricehamn ---
+    { id: 173, name: "ICA Supermarket Tornet", city: "Ulricehamn", address: "Strandgatan 6", status: "Prospekt", comment: "", revenue: 143000000, contactedBy: "", phone: "0321 26610", email: "calle.bergman@supermarket.ica.se" },
+    { id: 174, name: "Maxi ICA Stormarknad Ulricehamn", city: "Ulricehamn", address: "Ubbarpsvägen 2A", status: "Prospekt", comment: "", revenue: 270000000, contactedBy: "", phone: "0321 534600", email: "" },
+    { id: 175, name: "ICA Nära Timmele", city: "Timmele", address: "Ängstigen 4", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0321 30176", email: "jakob.flygare@nara.ica.se" },
+    { id: 176, name: "ICA Nära Gällstad", city: "Gällstad", address: "Boråsvägen 40", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0321 70001", email: "johan.gustafsson@nara.ica.se" },
+
+    // --- Färgelanda ---
+    { id: 177, name: "ICA Supermarket Färgelanda", city: "Färgelanda", address: "Centrumvägen 7", status: "Prospekt", comment: "", revenue: 76000000, contactedBy: "", phone: "0528 10565", email: "daniel.f.larsson@supermarket.ica.se" },
+
+    // --- Karlsborg ---
+    { id: 178, name: "ICA Supermarket Karlsborg", city: "Karlsborg", address: "Storgatan 18", status: "Prospekt", comment: "", revenue: 117000000, contactedBy: "", phone: "0505 17400", email: "helen.lundqvist@supermarket.ica.se" },
+    { id: 179, name: "ICA Nära Fredéns", city: "Mölltorp", address: "Centralgatan 20", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0505 30017", email: "urban.freden@nara.ica.se" },
+    { id: 180, name: "ICA Nära Lanthandeln Undenäs", city: "Undenäs", address: "Svanhultsvägen 3", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "0505 20475", email: "lanthandeln.undenas@nara.ica.se" },
+
+    // --- Bollebygd ---
+    { id: 181, name: "ICA Nära Bollebygd", city: "Bollebygd", address: "Gästgifvaretorget 1", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "033 285050", email: "andreas.x.hartvigsson@nara.ica.se" },
+
+    // --- Öckerö ---
+    { id: 182, name: "ICA Nära Alexius Livs", city: "Öckerö", address: "Hårdebacksvägen 2", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 965734", email: "erina.tillander@nara.ica.se" },
+    { id: 183, name: "ICA Supermarket Hönö", city: "Hönö", address: "Lökholmsvägen 2", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 976790", email: "hakan.jarnebratt@supermarket.ica.se" },
+    { id: 184, name: "ICA Nära Björkö", city: "Öckerö", address: "Bohus-Björkö", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 961022", email: "erik.almhojd@nara.ica.se" },
+    { id: 185, name: "ICA Nära Rörö Strandkassa", city: "Rörö", address: "Sörikringsvägen 16", status: "Prospekt", comment: "", revenue: 0, contactedBy: "", phone: "031 964008", email: "susannem.johansson@nara.ica.se" },
+];
+
+let sortField = 'name';
+let sortAsc = true;
+let editingId = null;
+
+function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(customers));
+}
+
+function sortBy(field) {
+    if (sortField === field) { sortAsc = !sortAsc; }
+    else { sortField = field; sortAsc = true; }
+    renderTable();
+}
+
+function renderTable() {
+    const query = document.getElementById('search').value.toLowerCase();
+    let filtered = customers.filter(c =>
+        c.name.toLowerCase().includes(query) ||
+        c.city.toLowerCase().includes(query) ||
+        c.status.toLowerCase().includes(query) ||
+        (c.address || '').toLowerCase().includes(query) ||
+        (c.contactedBy || '').toLowerCase().includes(query) ||
+        (c.phone || '').toLowerCase().includes(query) ||
+        (c.email || '').toLowerCase().includes(query)
+    );
+
+    filtered.sort((a, b) => {
+        let va = a[sortField] || '', vb = b[sortField] || '';
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        if (va < vb) return sortAsc ? -1 : 1;
+        if (va > vb) return sortAsc ? 1 : -1;
+        return 0;
+    });
+
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = filtered.map(c => {
+        const link = mapsUrl(c.name, c.address || '', c.city);
+        const emailCell = c.email ? `<a class="email-link" href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '';
+        const contactedCell = c.contactedBy
+            ? `<span class="contacted-name" onclick="event.stopPropagation();unmarkContacted(${c.id})" title="Klicka för att ta bort markering">${esc(c.contactedBy)}</span>`
+            : `<button class="btn-contact" onclick="event.stopPropagation();markContacted(${c.id})">Kontaktad</button>`;
+        const commentVal = esc(c.comment || '');
+        return `
+        <tr>
+            <td><a class="store-link" href="profile.html?id=${c.id}">${esc(c.name)}</a></td>
+            <td>${esc(c.city)}</td>
+            <td>${esc(c.address || '')}</td>
+            <td><a class="map-link" href="${link}" target="_blank" rel="noopener">Visa karta</a></td>
+            <td>
+                <select class="inline-status status-${(c.status || 'prospekt').toLowerCase().replace(/\s+/g,'-')}" onchange="saveStatus(${c.id}, this.value)" onclick="event.stopPropagation()">
+                    <option value="Prospekt" ${c.status==='Prospekt'?'selected':''}>Prospekt</option>
+                    <option value="Kontaktad" ${c.status==='Kontaktad'?'selected':''}>Kontaktad</option>
+                    <option value="Skickat prov" ${c.status==='Skickat prov'?'selected':''}>Skickat prov</option>
+                    <option value="Väntar på svar" ${c.status==='Väntar på svar'?'selected':''}>Väntar på svar</option>
+                    <option value="Intresserad" ${c.status==='Intresserad'?'selected':''}>Intresserad</option>
+                    <option value="Återkoppla senare" ${c.status==='Återkoppla senare'?'selected':''}>Återkoppla senare</option>
+                    <option value="Nej tack" ${c.status==='Nej tack'?'selected':''}>Nej tack</option>
+                </select>
+            </td>
+            <td><input class="inline-comment" type="text" value="${commentVal}" placeholder="Lägg till kommentar..." title="${commentVal}" onchange="saveComment(${c.id}, this.value)" oninput="this.title=this.value" onclick="event.stopPropagation()"></td>
+            <td class="revenue">${(c.revenue || 0).toLocaleString('sv-SE')} kr</td>
+            <td>${contactedCell}</td>
+            <td>${esc(c.phone || '')}</td>
+            <td>${emailCell}</td>
+            <td><button class="btn-edit" onclick="event.stopPropagation();editCustomer(${c.id})">Redigera</button></td>
+        </tr>`;
+    }).join('');
+
+    // Stats
+    document.getElementById('totalCustomers').textContent = customers.length;
+    document.getElementById('activeCustomers').textContent = customers.filter(c => c.status === 'Intresserad').length;
+    document.getElementById('totalRevenue').textContent = customers.reduce((s, c) => s + (c.revenue || 0), 0).toLocaleString('sv-SE') + ' kr';
+}
+
+function moveToClients(id) {
+    const c = customers.find(x => x.id === id);
+    if (!c) return;
+    if (!confirm(`Flytta "${c.name}" till Våra butiker?`)) return;
+
+    // Add to clients list
+    const CLIENTS_KEY = 'claude-salj-clients-v1';
+    let clients = JSON.parse(localStorage.getItem(CLIENTS_KEY) || '[]');
+    const newId = clients.length ? Math.max(...clients.map(x => x.id)) + 1 : 1;
+    clients.push({
+        id: newId,
+        name: c.name,
+        city: c.city,
+        address: c.address || '',
+        contactPerson: c.contactedBy || '',
+        phone: c.phone || '',
+        email: c.email || '',
+        revenue: 0,
+        startDate: new Date().toISOString().split('T')[0],
+        comment: c.comment || ''
+    });
+    localStorage.setItem(CLIENTS_KEY, JSON.stringify(clients));
+
+    // Remove from prospects
+    customers = customers.filter(x => x.id !== id);
+    save();
+    renderTable();
+}
+
+function saveStatus(id, value) {
+    const c = customers.find(x => x.id === id);
+    if (!c) return;
+    c.status = value;
+    save();
+    renderTable();
+}
+
+function saveComment(id, value) {
+    const c = customers.find(x => x.id === id);
+    if (!c) return;
+    c.comment = value.trim();
+    save();
+}
+
+function markContacted(id) {
+    const c = customers.find(x => x.id === id);
+    if (!c) return;
+    c.contactedBy = currentUser.name;
+    c.status = 'Kontaktad';
+    save();
+    renderTable();
+}
+
+function unmarkContacted(id) {
+    if (!confirm('Ta bort kontaktmarkering?')) return;
+    const c = customers.find(x => x.id === id);
+    if (!c) return;
+    c.contactedBy = '';
+    c.status = 'Prospekt';
+    save();
+    renderTable();
+}
+
+function esc(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function openModal() {
+    editingId = null;
+    document.getElementById('modalTitle').textContent = 'Lägg till kund';
+    document.getElementById('f-name').value = '';
+    document.getElementById('f-city').value = '';
+    document.getElementById('f-address').value = '';
+    document.getElementById('f-status').value = 'Aktiv';
+    document.getElementById('f-comment').value = '';
+    document.getElementById('f-revenue').value = '';
+    document.getElementById('f-contactedBy').value = '';
+    document.getElementById('f-phone').value = '';
+    document.getElementById('f-email').value = '';
+    document.getElementById('modal').classList.add('active');
+}
+
+function editCustomer(id) {
+    const c = customers.find(x => x.id === id);
+    if (!c) return;
+    editingId = id;
+    document.getElementById('modalTitle').textContent = 'Redigera kund';
+    document.getElementById('f-name').value = c.name || '';
+    document.getElementById('f-city').value = c.city || '';
+    document.getElementById('f-address').value = c.address || '';
+    document.getElementById('f-status').value = c.status || 'Prospekt';
+    document.getElementById('f-comment').value = c.comment || '';
+    document.getElementById('f-revenue').value = c.revenue || 0;
+    document.getElementById('f-contactedBy').value = c.contactedBy || '';
+    document.getElementById('f-phone').value = c.phone || '';
+    document.getElementById('f-email').value = c.email || '';
+    document.getElementById('modal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('modal').classList.remove('active');
+}
+
+function saveCustomer() {
+    const name = document.getElementById('f-name').value.trim();
+    const city = document.getElementById('f-city').value.trim();
+    const address = document.getElementById('f-address').value.trim();
+    const status = document.getElementById('f-status').value;
+    const comment = document.getElementById('f-comment').value.trim();
+    const revenue = parseInt(document.getElementById('f-revenue').value) || 0;
+    const contactedBy = document.getElementById('f-contactedBy').value.trim();
+    const phone = document.getElementById('f-phone').value.trim();
+    const email = document.getElementById('f-email').value.trim();
+
+    if (!name) { alert('Ange butiks namn'); return; }
+
+    if (editingId) {
+        const c = customers.find(x => x.id === editingId);
+        Object.assign(c, { name, city, address, status, comment, revenue, contactedBy, phone, email });
+    } else {
+        const id = customers.length ? Math.max(...customers.map(c => c.id)) + 1 : 1;
+        customers.push({ id, name, city, address, status, comment, revenue, contactedBy, phone, email });
+    }
+
+    save();
+    closeModal();
+    renderTable();
+}
+
+// Close modal on overlay click
+document.getElementById('modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+});
+
+renderTable();
+
+// Auto-open edit modal if ?edit=id is in URL
+const urlParams = new URLSearchParams(window.location.search);
+const autoEdit = urlParams.get('edit');
+if (autoEdit) {
+    editCustomer(parseInt(autoEdit));
+    history.replaceState(null, '', 'index.html');
+}
+</script>
+
+</body>
+</html>

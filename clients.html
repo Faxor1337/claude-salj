@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Våra butiker - Virea AB</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        .store-link {
+            color: #e0e0e8;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .store-link:hover {
+            color: #818cf8;
+            text-decoration: underline;
+        }
+        .inline-comment {
+            border: 1px solid transparent;
+            background: transparent;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+            width: 100%;
+            min-width: 140px;
+            color: #c0c4d4;
+        }
+        .inline-comment::placeholder { color: #4b5068; }
+        .inline-comment:hover { border-color: #303348; background: #1e2030; }
+        .inline-comment:focus { border-color: #6366f1; background: #1e2030; outline: none; }
+        .btn-edit {
+            background: rgba(255,255,255,0.06);
+            color: #8b8fa4;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .btn-edit:hover { background: rgba(255,255,255,0.1); color: #e0e0e8; }
+    </style>
+</head>
+<body>
+
+<div class="stats">
+    <div class="stat-card">
+        <div class="label">Antal kunder</div>
+        <div class="value" id="totalClients">0</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Månatlig omsättning</div>
+        <div class="value" id="totalRevenue">0 kr</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Senast tillagd</div>
+        <div class="value" id="latestClient" style="font-size:18px;">-</div>
+    </div>
+</div>
+
+<div class="table-container">
+    <div class="table-header">
+        <h2>Våra butiker</h2>
+        <div style="display:flex;gap:10px;">
+            <input type="text" class="search-box" placeholder="Sök butik..." oninput="renderTable()" id="search">
+            <button class="add-btn" onclick="openModal()">+ Lägg till butik</button>
+        </div>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th onclick="sortBy('name')">Butiks namn</th>
+                <th onclick="sortBy('city')">Stad</th>
+                <th onclick="sortBy('address')">Adress</th>
+                <th>Karta</th>
+                <th onclick="sortBy('contactPerson')">Kontaktperson</th>
+                <th onclick="sortBy('phone')">Telefon</th>
+                <th onclick="sortBy('email')">Email</th>
+                <th onclick="sortBy('revenue')">Omsättning/mån</th>
+                <th onclick="sortBy('startDate')">Kund sedan</th>
+                <th onclick="sortBy('comment')">Kommentar</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="modal">
+    <div class="modal">
+        <h3 id="modalTitle">Lägg till butik</h3>
+        <label>Butiks namn</label>
+        <input type="text" id="f-name">
+        <label>Stad</label>
+        <input type="text" id="f-city">
+        <label>Adress</label>
+        <input type="text" id="f-address">
+        <label>Kontaktperson</label>
+        <input type="text" id="f-contactPerson">
+        <label>Telefon</label>
+        <input type="tel" id="f-phone">
+        <label>Email</label>
+        <input type="email" id="f-email">
+        <label>Omsättning per månad (kr)</label>
+        <input type="number" id="f-revenue" min="0">
+        <label>Kund sedan</label>
+        <input type="date" id="f-startDate">
+        <label>Kommentar</label>
+        <textarea id="f-comment"></textarea>
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">Avbryt</button>
+            <button class="btn-save" onclick="saveClient()">Spara</button>
+        </div>
+    </div>
+</div>
+
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script>
+const currentUser = requireAuth();
+renderNav('clients');
+
+const CLIENTS_KEY = 'claude-salj-clients-v1';
+
+let clients = JSON.parse(localStorage.getItem(CLIENTS_KEY) || 'null') || [
+    {
+        id: 1,
+        name: "Hemköp Torpa",
+        city: "Vänersborg",
+        address: "Torpavägen 2",
+        contactPerson: "",
+        phone: "",
+        email: "",
+        revenue: 0,
+        startDate: "2026-03-01",
+        comment: "Första kunden!"
+    },
+];
+
+let sortField = 'name';
+let sortAsc = true;
+let editingId = null;
+
+function save() {
+    localStorage.setItem(CLIENTS_KEY, JSON.stringify(clients));
+}
+
+function sortBy(field) {
+    if (sortField === field) sortAsc = !sortAsc;
+    else { sortField = field; sortAsc = true; }
+    renderTable();
+}
+
+function mapsUrl(name, address, city) {
+    const q = encodeURIComponent(`${name}, ${address}, ${city}`);
+    return `https://www.google.com/maps/search/?api=1&query=${q}`;
+}
+
+function renderTable() {
+    const query = document.getElementById('search').value.toLowerCase();
+    let filtered = clients.filter(c =>
+        c.name.toLowerCase().includes(query) ||
+        c.city.toLowerCase().includes(query) ||
+        (c.address || '').toLowerCase().includes(query) ||
+        (c.contactPerson || '').toLowerCase().includes(query) ||
+        (c.phone || '').toLowerCase().includes(query) ||
+        (c.email || '').toLowerCase().includes(query)
+    );
+
+    filtered.sort((a, b) => {
+        let va = a[sortField] || '', vb = b[sortField] || '';
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        if (va < vb) return sortAsc ? -1 : 1;
+        if (va > vb) return sortAsc ? 1 : -1;
+        return 0;
+    });
+
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = filtered.map(c => {
+        const link = mapsUrl(c.name, c.address || '', c.city);
+        const emailCell = c.email ? `<a class="email-link" href="mailto:${escHtml(c.email)}">${escHtml(c.email)}</a>` : '';
+        const commentVal = escHtml(c.comment || '');
+        return `
+        <tr>
+            <td><a class="store-link" href="client-profile.html?id=${c.id}">${escHtml(c.name)}</a></td>
+            <td>${escHtml(c.city)}</td>
+            <td>${escHtml(c.address || '')}</td>
+            <td><a class="map-link" href="${link}" target="_blank" rel="noopener">Visa karta</a></td>
+            <td>${escHtml(c.contactPerson || '')}</td>
+            <td>${escHtml(c.phone || '')}</td>
+            <td>${emailCell}</td>
+            <td class="revenue">${(c.revenue || 0).toLocaleString('sv-SE')} kr</td>
+            <td>${c.startDate || ''}</td>
+            <td><input class="inline-comment" type="text" value="${commentVal}" placeholder="Lägg till kommentar..." title="${commentVal}" onchange="saveComment(${c.id}, this.value)" oninput="this.title=this.value" onclick="event.stopPropagation()"></td>
+            <td><button class="btn-edit" onclick="event.stopPropagation();editClient(${c.id})">Redigera</button></td>
+        </tr>`;
+    }).join('');
+
+    // Stats
+    document.getElementById('totalClients').textContent = clients.length;
+    document.getElementById('totalRevenue').textContent = clients.reduce((s, c) => s + (c.revenue || 0), 0).toLocaleString('sv-SE') + ' kr';
+    if (clients.length > 0) {
+        const latest = [...clients].sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''))[0];
+        document.getElementById('latestClient').textContent = latest.name;
+    }
+}
+
+function saveComment(id, value) {
+    const c = clients.find(x => x.id === id);
+    if (!c) return;
+    c.comment = value.trim();
+    save();
+}
+
+function escHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function openModal() {
+    editingId = null;
+    document.getElementById('modalTitle').textContent = 'Lägg till butik';
+    document.getElementById('f-name').value = '';
+    document.getElementById('f-city').value = '';
+    document.getElementById('f-address').value = '';
+    document.getElementById('f-contactPerson').value = '';
+    document.getElementById('f-phone').value = '';
+    document.getElementById('f-email').value = '';
+    document.getElementById('f-revenue').value = '';
+    document.getElementById('f-startDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('f-comment').value = '';
+    document.getElementById('modal').classList.add('active');
+}
+
+function editClient(id) {
+    const c = clients.find(x => x.id === id);
+    if (!c) return;
+    editingId = id;
+    document.getElementById('modalTitle').textContent = 'Redigera butik';
+    document.getElementById('f-name').value = c.name;
+    document.getElementById('f-city').value = c.city;
+    document.getElementById('f-address').value = c.address || '';
+    document.getElementById('f-contactPerson').value = c.contactPerson || '';
+    document.getElementById('f-phone').value = c.phone || '';
+    document.getElementById('f-email').value = c.email || '';
+    document.getElementById('f-revenue').value = c.revenue || '';
+    document.getElementById('f-startDate').value = c.startDate || '';
+    document.getElementById('f-comment').value = c.comment || '';
+    document.getElementById('modal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('modal').classList.remove('active');
+}
+
+function saveClient() {
+    const name = document.getElementById('f-name').value.trim();
+    const city = document.getElementById('f-city').value.trim();
+    const address = document.getElementById('f-address').value.trim();
+    const contactPerson = document.getElementById('f-contactPerson').value.trim();
+    const phone = document.getElementById('f-phone').value.trim();
+    const email = document.getElementById('f-email').value.trim();
+    const revenue = parseInt(document.getElementById('f-revenue').value) || 0;
+    const startDate = document.getElementById('f-startDate').value;
+    const comment = document.getElementById('f-comment').value.trim();
+
+    if (!name) { alert('Ange butiks namn'); return; }
+
+    if (editingId) {
+        const c = clients.find(x => x.id === editingId);
+        Object.assign(c, { name, city, address, contactPerson, phone, email, revenue, startDate, comment });
+    } else {
+        const id = clients.length ? Math.max(...clients.map(c => c.id)) + 1 : 1;
+        clients.push({ id, name, city, address, contactPerson, phone, email, revenue, startDate, comment });
+    }
+
+    save();
+    closeModal();
+    renderTable();
+}
+
+document.getElementById('modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+});
+
+renderTable();
+
+// Auto-open edit modal if ?edit=id is in URL
+const urlParams = new URLSearchParams(window.location.search);
+const autoEdit = urlParams.get('edit');
+if (autoEdit) {
+    editClient(parseInt(autoEdit));
+    history.replaceState(null, '', 'clients.html');
+}
+</script>
+
+</body>
+</html>

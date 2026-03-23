@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kundprofil - Virea AB</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        .profile-header {
+            background: #161822;
+            margin: 24px 32px 0;
+            border-radius: 10px 10px 0 0;
+            border: 1px solid #252836;
+            border-bottom: none;
+            padding: 32px 32px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .profile-title { font-size: 24px; font-weight: 700; margin-bottom: 6px; color: #e0e0e8; }
+        .profile-subtitle { font-size: 14px; color: #6b7280; }
+        .profile-actions { display: flex; gap: 10px; }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin: 0 32px;
+            background: #161822;
+            border-left: 1px solid #252836;
+            border-right: 1px solid #252836;
+            padding: 0 32px;
+        }
+        .tab {
+            padding: 14px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6b7280;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.15s;
+        }
+        .tab:hover { color: #e0e0e8; }
+        .tab.active { color: #818cf8; border-bottom-color: #6366f1; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .tab-body {
+            margin: 0 32px 32px;
+            background: #161822;
+            border: 1px solid #252836;
+            border-top: 1px solid #252836;
+            border-radius: 0 0 10px 10px;
+            padding: 24px 32px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        .info-card {
+            background: #1e2030;
+            border-radius: 10px;
+            border: 1px solid #252836;
+            padding: 24px;
+        }
+        .info-card h3 {
+            font-size: 13px;
+            color: #8b8fa4;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 14px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #252836;
+            font-size: 14px;
+            color: #c0c4d4;
+        }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: #8b8fa4; }
+        .info-value { font-weight: 600; color: #e0e0e8; }
+        .info-value a { color: #818cf8; text-decoration: none; }
+        .info-value a:hover { text-decoration: underline; color: #a5b4fc; }
+
+        /* Notes */
+        .notes-section { margin-top: 24px; }
+        .notes-section h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #e0e0e8; }
+        .note-input { display: flex; gap: 10px; margin-bottom: 20px; }
+        .note-input textarea {
+            flex: 1; padding: 10px 14px; border: 1px solid #303348; border-radius: 8px;
+            font-size: 14px; font-family: inherit; resize: vertical; min-height: 60px;
+            background: #1e2030; color: #e0e0e8;
+        }
+        .note-input textarea:focus { border-color: #6366f1; outline: none; }
+        .note-input button {
+            align-self: flex-end; padding: 10px 20px; background: #6366f1; color: #fff;
+            border: none; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 500;
+        }
+        .note-input button:hover { background: #5558e6; }
+        .note-item { padding: 14px 0; border-bottom: 1px solid #252836; }
+        .note-item:last-child { border-bottom: none; }
+        .note-meta { font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+        .note-text { font-size: 14px; line-height: 1.5; color: #c0c4d4; }
+        .no-notes { color: #6b7280; font-size: 14px; font-style: italic; }
+
+        /* Avtal */
+        .avtal-section h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #e0e0e8; }
+
+        .invoice-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+        .invoice-grid label {
+            font-size: 13px; font-weight: 600; color: #8b8fa4;
+            display: block; margin-bottom: 4px;
+        }
+        .invoice-grid input {
+            width: 100%; padding: 9px 12px; border: 1px solid #303348;
+            border-radius: 8px; font-size: 14px; font-family: inherit;
+            background: #1e2030; color: #e0e0e8;
+        }
+        .invoice-grid input:focus { border-color: #6366f1; outline: none; }
+        .invoice-grid .full-width { grid-column: 1 / -1; }
+
+        .product-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        .product-table th {
+            text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600;
+            color: #8b8fa4; text-transform: uppercase; letter-spacing: 0.5px;
+            background: #1a1c2e; border-bottom: 1px solid #252836;
+        }
+        .product-table td {
+            padding: 8px 14px; border-bottom: 1px solid #1e2030; font-size: 14px; color: #c0c4d4;
+        }
+        .product-table tr:hover td { background: rgba(99,102,241,0.04); }
+        .product-table input {
+            width: 100%; padding: 6px 10px; border: 1px solid #303348;
+            border-radius: 6px; font-size: 13px; font-family: inherit;
+            background: #1e2030; color: #e0e0e8;
+        }
+        .product-table input:focus { border-color: #6366f1; outline: none; }
+        .product-table .calculated {
+            color: #4ade80; font-weight: 600; font-variant-numeric: tabular-nums;
+        }
+        .product-table .rek-price {
+            color: #6b7280; font-variant-numeric: tabular-nums;
+        }
+
+        .add-product-row {
+            margin-top: 12px; display: flex; gap: 10px;
+        }
+        .add-product-row input {
+            padding: 8px 12px; border: 1px solid #303348; border-radius: 8px;
+            font-size: 13px; background: #1e2030; color: #e0e0e8; font-family: inherit;
+        }
+        .add-product-row input:focus { border-color: #6366f1; outline: none; }
+        .add-product-row button {
+            padding: 8px 16px; background: #6366f1; color: #fff; border: none;
+            border-radius: 8px; font-size: 13px; cursor: pointer; font-weight: 500;
+        }
+        .add-product-row button:hover { background: #5558e6; }
+
+        .margin-bar {
+            display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+            padding: 14px 18px; background: #1e2030; border-radius: 10px; border: 1px solid #252836;
+        }
+        .margin-bar label { font-size: 13px; font-weight: 600; color: #8b8fa4; white-space: nowrap; }
+        .margin-bar input {
+            width: 80px; padding: 6px 10px; border: 1px solid #303348; border-radius: 6px;
+            font-size: 14px; background: #161822; color: #e0e0e8; text-align: center; font-family: inherit;
+        }
+        .margin-bar input:focus { border-color: #6366f1; outline: none; }
+        .margin-bar span { font-size: 13px; color: #6b7280; }
+
+        .btn-remove {
+            background: none; border: none; color: #f87171; cursor: pointer;
+            font-size: 16px; padding: 2px 6px; border-radius: 4px;
+        }
+        .btn-remove:hover { background: rgba(239,68,68,0.12); }
+
+        .invoice-type-btn {
+            flex: 1;
+            background: #1e2030;
+            border: 2px solid #303348;
+            border-radius: 10px;
+            padding: 18px 20px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.15s;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .invoice-type-btn:hover { border-color: #6366f1; }
+        .invoice-type-btn.active { border-color: #6366f1; background: rgba(99,102,241,0.08); }
+        .invoice-type-btn .type-icon { font-size: 22px; margin-bottom: 4px; }
+        .invoice-type-btn .type-label { font-size: 14px; font-weight: 600; color: #e0e0e8; }
+        .invoice-type-btn .type-desc { font-size: 12px; color: #6b7280; }
+
+        .inv-badge {
+            display: inline-block; padding: 3px 10px; border-radius: 20px;
+            font-size: 11px; font-weight: 600;
+        }
+        .inv-badge.direct { background: rgba(34,197,94,0.12); color: #4ade80; }
+        .inv-badge.pending { background: rgba(251,146,60,0.15); color: #fb923c; }
+        .inv-badge.paid { background: rgba(99,102,241,0.15); color: #818cf8; }
+
+        .hist-item {
+            padding: 16px; background: #1e2030; border-radius: 8px;
+            border: 1px solid #252836; margin-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .hist-left { display: flex; flex-direction: column; gap: 4px; }
+        .hist-id { font-size: 14px; font-weight: 600; color: #e0e0e8; }
+        .hist-meta { font-size: 12px; color: #6b7280; }
+        .hist-right { display: flex; align-items: center; gap: 12px; }
+        .hist-amount { font-size: 16px; font-weight: 700; color: #e0e0e8; }
+        .hist-actions button {
+            background: rgba(255,255,255,0.06); border: none; color: #8b8fa4;
+            padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600;
+        }
+        .hist-actions button:hover { background: rgba(255,255,255,0.1); color: #e0e0e8; }
+        .no-invoices { color: #6b7280; font-size: 14px; font-style: italic; }
+
+        .save-indicator {
+            font-size: 12px; color: #4ade80; margin-left: 12px; opacity: 0; transition: opacity 0.3s;
+        }
+        .save-indicator.show { opacity: 1; }
+    </style>
+</head>
+<body>
+
+<div class="profile-header" id="profileHeader">
+    <div>
+        <div class="profile-title" id="storeName">Laddar...</div>
+        <div class="profile-subtitle" id="storeLocation"></div>
+    </div>
+    <div class="profile-actions">
+        <a href="clients.html" class="add-btn" style="background:rgba(99,102,241,0.15);color:#818cf8;text-decoration:none;">Tillbaka</a>
+        <button class="add-btn" onclick="editInModal()">Redigera</button>
+    </div>
+</div>
+
+<div class="tabs">
+    <div class="tab active" onclick="switchTab('overview')">Översikt</div>
+    <div class="tab" onclick="switchTab('avtal')">Avtal & Prissättning</div>
+    <div class="tab" onclick="switchTab('faktura')">Fakturering</div>
+</div>
+
+<!-- Tab: Översikt -->
+<div class="tab-body">
+<div id="tab-overview" class="tab-content active">
+    <div class="info-grid">
+        <div class="info-card">
+            <h3>Kontaktinfo</h3>
+            <div id="contactInfo"></div>
+        </div>
+        <div class="info-card">
+            <h3>Kundinfo</h3>
+            <div id="clientInfo"></div>
+        </div>
+        <div class="info-card">
+            <h3>Plats</h3>
+            <div id="locationInfo"></div>
+        </div>
+    </div>
+
+    <div class="notes-section">
+        <h3>Anteckningar</h3>
+        <div class="note-input">
+            <textarea id="noteText" placeholder="Skriv en anteckning..."></textarea>
+            <button onclick="addNote()">Lägg till</button>
+        </div>
+        <div id="notesList"></div>
+    </div>
+</div>
+
+<!-- Tab: Avtal -->
+<div id="tab-avtal" class="tab-content">
+    <div class="avtal-section">
+        <h3>Fakturauppgifter <span class="save-indicator" id="invoiceSaved">Sparat</span></h3>
+        <div class="invoice-grid">
+            <div>
+                <label>Företagsnamn</label>
+                <input type="text" id="inv-company" onchange="saveInvoice()">
+            </div>
+            <div>
+                <label>Org.nummer</label>
+                <input type="text" id="inv-orgnr" placeholder="XXXXXX-XXXX" onchange="saveInvoice()">
+            </div>
+            <div class="full-width">
+                <label>Fakturaadress</label>
+                <input type="text" id="inv-address" onchange="saveInvoice()">
+            </div>
+            <div>
+                <label>Postnummer & Ort</label>
+                <input type="text" id="inv-postal" onchange="saveInvoice()">
+            </div>
+            <div>
+                <label>Referens / Er märkning</label>
+                <input type="text" id="inv-reference" onchange="saveInvoice()">
+            </div>
+            <div>
+                <label>Betalningsvillkor</label>
+                <input type="text" id="inv-terms" placeholder="30 dagar netto" onchange="saveInvoice()">
+            </div>
+            <div>
+                <label>E-faktura / Email</label>
+                <input type="email" id="inv-email" onchange="saveInvoice()">
+            </div>
+        </div>
+
+        <h3>Prissättning <span class="save-indicator" id="priceSaved">Sparat</span></h3>
+        <div class="margin-bar">
+            <label>Standard marginal:</label>
+            <input type="number" id="globalMargin" value="30" min="0" max="99" onchange="applyGlobalMargin()">
+            <span>%</span>
+            <span style="margin-left:8px;color:#8b8fa4;">— Applicera på alla produkter</span>
+        </div>
+
+        <table class="product-table">
+            <thead>
+                <tr>
+                    <th>Produkt</th>
+                    <th>Rek. pris (kr)</th>
+                    <th>Marginal %</th>
+                    <th>Ert pris (kr)</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="productBody"></tbody>
+        </table>
+
+        <div class="add-product-row">
+            <input type="text" id="newProductName" placeholder="Produktnamn">
+            <input type="number" id="newProductRek" placeholder="Rek. pris" min="0" style="width:120px;">
+            <button onclick="addProduct()">+ Lägg till produkt</button>
+        </div>
+
+        <div style="margin-top:28px;padding-top:24px;border-top:1px solid #252836;">
+            <button class="add-btn" onclick="downloadPDF()" style="background:rgba(34,197,94,0.15);color:#4ade80;">Ladda ner avtal som PDF</button>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Fakturering -->
+<div id="tab-faktura" class="tab-content">
+    <div class="avtal-section">
+        <h3>Skapa ny faktura</h3>
+
+        <div style="display:flex;gap:12px;margin-bottom:24px;">
+            <button class="invoice-type-btn active" id="typeDirectBtn" onclick="setInvoiceType('direct')">
+                <span class="type-icon">&#x1F4E6;</span>
+                <span class="type-label">Faktura med leverans</span>
+                <span class="type-desc">Varor skickas samtidigt som fakturan</span>
+            </button>
+            <button class="invoice-type-btn" id="typePendingBtn" onclick="setInvoiceType('pending')">
+                <span class="type-icon">&#x23F3;</span>
+                <span class="type-label">Väntande faktura</span>
+                <span class="type-desc">Varor redan skickade, faktura skickas nu</span>
+            </button>
+        </div>
+
+        <div id="pendingDateRow" style="display:none;margin-bottom:18px;">
+            <div style="display:flex;gap:20px;">
+                <div>
+                    <label style="font-size:13px;font-weight:600;color:#8b8fa4;display:block;margin-bottom:4px;">Leveransdatum (när varorna skickades)</label>
+                    <input type="date" id="inv-deliveryDate" style="padding:9px 12px;border:1px solid #303348;border-radius:8px;font-size:14px;background:#1e2030;color:#e0e0e8;font-family:inherit;width:200px;">
+                </div>
+                <div>
+                    <label style="font-size:13px;font-weight:600;color:#8b8fa4;display:block;margin-bottom:4px;">Avstämningsdatum (påminnelse)</label>
+                    <input type="date" id="inv-followupDate" style="padding:9px 12px;border:1px solid #303348;border-radius:8px;font-size:14px;background:#1e2030;color:#e0e0e8;font-family:inherit;width:200px;">
+                </div>
+            </div>
+        </div>
+
+        <h4 style="font-size:14px;font-weight:600;color:#e0e0e8;margin-bottom:12px;">Antal per produkt</h4>
+        <table class="product-table">
+            <thead>
+                <tr>
+                    <th>Produkt</th>
+                    <th style="text-align:right;">Pris/st</th>
+                    <th style="text-align:center;">Antal</th>
+                    <th style="text-align:right;">Summa</th>
+                </tr>
+            </thead>
+            <tbody id="invoiceProductBody"></tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" style="text-align:right;font-weight:700;color:#e0e0e8;padding:12px 14px;border-top:2px solid #303348;">Totalt exkl. moms</td>
+                    <td style="text-align:right;font-weight:700;color:#4ade80;font-size:16px;padding:12px 14px;border-top:2px solid #303348;" id="invoiceTotal">0 kr</td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="text-align:right;font-weight:600;color:#8b8fa4;padding:6px 14px;">Moms 25%</td>
+                    <td style="text-align:right;font-weight:600;color:#8b8fa4;padding:6px 14px;" id="invoiceVat">0 kr</td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="text-align:right;font-weight:700;color:#e0e0e8;padding:6px 14px;">Totalt inkl. moms</td>
+                    <td style="text-align:right;font-weight:700;color:#e0e0e8;font-size:16px;padding:6px 14px;" id="invoiceTotalInc">0 kr</td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div style="margin-top:20px;display:flex;gap:10px;">
+            <button class="add-btn" onclick="createInvoice()">Skapa faktura</button>
+            <button class="add-btn" onclick="createAndDownloadInvoice()" style="background:rgba(34,197,94,0.15);color:#4ade80;">Skapa & ladda ner PDF</button>
+        </div>
+
+        <div style="margin-top:36px;border-top:1px solid #252836;padding-top:24px;">
+            <h3>Faktureringshistorik</h3>
+            <div id="invoiceHistory" style="margin-top:16px;"></div>
+        </div>
+    </div>
+</div>
+</div>
+
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script>
+const currentUser = requireAuth();
+renderNav('clients');
+
+const CLIENTS_KEY = 'claude-salj-clients-v1';
+const NOTES_KEY = 'claude-salj-client-notes';
+const CONTRACTS_KEY = 'claude-salj-contracts';
+
+const params = new URLSearchParams(window.location.search);
+const clientId = parseInt(params.get('id'));
+const initialTab = params.get('tab');
+
+let clients = JSON.parse(localStorage.getItem(CLIENTS_KEY) || '[]');
+let allNotes = JSON.parse(localStorage.getItem(NOTES_KEY) || '{}');
+let allContracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '{}');
+
+const client = clients.find(c => c.id === clientId);
+
+// --- Tabs ---
+function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    const tabIndex = { overview: 0, avtal: 1, faktura: 2 }[tab] || 0;
+    document.querySelectorAll('.tab')[tabIndex].classList.add('active');
+    if (tab === 'faktura') renderInvoiceHistory();
+}
+
+if (initialTab === 'avtal') switchTab('avtal');
+
+// --- Overview ---
+if (!client) {
+    document.getElementById('storeName').textContent = 'Butik hittades inte';
+} else {
+    document.title = client.name + ' - Virea AB';
+    document.getElementById('storeName').textContent = client.name;
+    document.getElementById('storeLocation').textContent = `${client.address || ''}, ${client.city}`;
+
+    const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.name + ', ' + (client.address || '') + ', ' + client.city)}`;
+
+    document.getElementById('contactInfo').innerHTML = `
+        <div class="info-row"><span class="info-label">Kontaktperson</span><span class="info-value">${escHtml(client.contactPerson || '-')}</span></div>
+        <div class="info-row"><span class="info-label">Telefon</span><span class="info-value">${escHtml(client.phone || '-')}</span></div>
+        <div class="info-row"><span class="info-label">Email</span><span class="info-value">${client.email ? `<a href="mailto:${escHtml(client.email)}">${escHtml(client.email)}</a>` : '-'}</span></div>
+    `;
+    document.getElementById('clientInfo').innerHTML = `
+        <div class="info-row"><span class="info-label">Kund sedan</span><span class="info-value">${client.startDate || '-'}</span></div>
+        <div class="info-row"><span class="info-label">Omsättning/mån</span><span class="info-value">${(client.revenue || 0).toLocaleString('sv-SE')} kr</span></div>
+        <div class="info-row"><span class="info-label">Kommentar</span><span class="info-value">${escHtml(client.comment || '-')}</span></div>
+    `;
+    document.getElementById('locationInfo').innerHTML = `
+        <div class="info-row"><span class="info-label">Adress</span><span class="info-value">${escHtml(client.address || '-')}</span></div>
+        <div class="info-row"><span class="info-label">Stad</span><span class="info-value">${escHtml(client.city)}</span></div>
+        <div class="info-row"><span class="info-label">Karta</span><span class="info-value"><a href="${mapsLink}" target="_blank" rel="noopener">Öppna i Google Maps</a></span></div>
+    `;
+}
+
+function escHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function editInModal() {
+    window.location.href = `clients.html?edit=${clientId}`;
+}
+
+// --- Notes ---
+function getClientNotes() { return allNotes[clientId] || []; }
+function saveNotes() { localStorage.setItem(NOTES_KEY, JSON.stringify(allNotes)); }
+
+function addNote() {
+    const text = document.getElementById('noteText').value.trim();
+    if (!text) return;
+    if (!allNotes[clientId]) allNotes[clientId] = [];
+    allNotes[clientId].unshift({ text, author: currentUser.name, date: new Date().toISOString() });
+    saveNotes();
+    document.getElementById('noteText').value = '';
+    renderNotes();
+}
+
+function renderNotes() {
+    const notes = getClientNotes();
+    const container = document.getElementById('notesList');
+    if (notes.length === 0) {
+        container.innerHTML = '<div class="no-notes">Inga anteckningar ännu</div>';
+        return;
+    }
+    container.innerHTML = notes.map(n => {
+        const date = new Date(n.date);
+        const dateStr = date.toLocaleDateString('sv-SE') + ' ' + date.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+        return `<div class="note-item"><div class="note-meta">${escHtml(n.author)} - ${dateStr}</div><div class="note-text">${escHtml(n.text)}</div></div>`;
+    }).join('');
+}
+
+renderNotes();
+
+// --- Contract / Invoice ---
+function getContract() {
+    return allContracts[clientId] || {
+        invoice: { company: '', orgnr: '', address: '', postal: '', reference: '', terms: '30 dagar netto', email: '' },
+        products: [
+            { name: 'Produkt A', rekPrice: 100, margin: 30 },
+            { name: 'Produkt B', rekPrice: 250, margin: 30 },
+            { name: 'Produkt C', rekPrice: 500, margin: 30 },
+        ],
+        globalMargin: 30
+    };
+}
+
+function saveContract(contract) {
+    allContracts[clientId] = contract;
+    localStorage.setItem(CONTRACTS_KEY, JSON.stringify(allContracts));
+}
+
+function flashSaved(id) {
+    const el = document.getElementById(id);
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 1500);
+}
+
+function loadInvoice() {
+    const c = getContract();
+    document.getElementById('inv-company').value = c.invoice.company || (client ? client.name : '');
+    document.getElementById('inv-orgnr').value = c.invoice.orgnr || '';
+    document.getElementById('inv-address').value = c.invoice.address || (client ? client.address || '' : '');
+    document.getElementById('inv-postal').value = c.invoice.postal || '';
+    document.getElementById('inv-reference').value = c.invoice.reference || '';
+    document.getElementById('inv-terms').value = c.invoice.terms || '30 dagar netto';
+    document.getElementById('inv-email').value = c.invoice.email || (client ? client.email || '' : '');
+    document.getElementById('globalMargin').value = c.globalMargin || 30;
+}
+
+function saveInvoice() {
+    const c = getContract();
+    c.invoice = {
+        company: document.getElementById('inv-company').value,
+        orgnr: document.getElementById('inv-orgnr').value,
+        address: document.getElementById('inv-address').value,
+        postal: document.getElementById('inv-postal').value,
+        reference: document.getElementById('inv-reference').value,
+        terms: document.getElementById('inv-terms').value,
+        email: document.getElementById('inv-email').value,
+    };
+    saveContract(c);
+    flashSaved('invoiceSaved');
+}
+
+function calcPrice(rekPrice, margin) {
+    return Math.round(rekPrice * (1 + margin / 100));
+}
+
+function renderProducts() {
+    const c = getContract();
+    const tbody = document.getElementById('productBody');
+    tbody.innerHTML = c.products.map((p, i) => {
+        const price = calcPrice(p.rekPrice, p.margin);
+        return `
+        <tr>
+            <td><input type="text" value="${escHtml(p.name)}" onchange="updateProduct(${i},'name',this.value)"></td>
+            <td class="rek-price">${p.rekPrice.toLocaleString('sv-SE')} kr</td>
+            <td><input type="number" value="${p.margin}" min="0" max="99" style="width:70px;text-align:center;" onchange="updateProduct(${i},'margin',this.value)"> %</td>
+            <td class="calculated">${price.toLocaleString('sv-SE')} kr</td>
+            <td><button class="btn-remove" onclick="removeProduct(${i})">&times;</button></td>
+        </tr>`;
+    }).join('');
+}
+
+function updateProduct(index, field, value) {
+    const c = getContract();
+    if (field === 'name') c.products[index].name = value;
+    if (field === 'margin') c.products[index].margin = parseFloat(value) || 0;
+    if (field === 'rekPrice') c.products[index].rekPrice = parseFloat(value) || 0;
+    saveContract(c);
+    renderProducts();
+    flashSaved('priceSaved');
+}
+
+function removeProduct(index) {
+    const c = getContract();
+    c.products.splice(index, 1);
+    saveContract(c);
+    renderProducts();
+}
+
+function addProduct() {
+    const name = document.getElementById('newProductName').value.trim();
+    const rek = parseFloat(document.getElementById('newProductRek').value) || 0;
+    if (!name) { alert('Ange produktnamn'); return; }
+    const c = getContract();
+    c.products.push({ name, rekPrice: rek, margin: c.globalMargin || 30 });
+    saveContract(c);
+    document.getElementById('newProductName').value = '';
+    document.getElementById('newProductRek').value = '';
+    renderProducts();
+}
+
+function applyGlobalMargin() {
+    const margin = parseFloat(document.getElementById('globalMargin').value) || 0;
+    const c = getContract();
+    c.globalMargin = margin;
+    c.products.forEach(p => p.margin = margin);
+    saveContract(c);
+    renderProducts();
+    flashSaved('priceSaved');
+}
+
+loadInvoice();
+renderProducts();
+
+// --- Invoicing ---
+const INVOICES_KEY = 'claude-salj-invoices';
+let allInvoices = JSON.parse(localStorage.getItem(INVOICES_KEY) || '{}');
+let invoiceType = 'direct';
+let invoiceQty = {};
+
+function setInvoiceType(type) {
+    invoiceType = type;
+    document.getElementById('typeDirectBtn').classList.toggle('active', type === 'direct');
+    document.getElementById('typePendingBtn').classList.toggle('active', type === 'pending');
+    document.getElementById('pendingDateRow').style.display = type === 'pending' ? 'block' : 'none';
+}
+
+function renderInvoiceProducts() {
+    const c = getContract();
+    const tbody = document.getElementById('invoiceProductBody');
+    tbody.innerHTML = c.products.map((p, i) => {
+        const price = calcPrice(p.rekPrice, p.margin);
+        const qty = invoiceQty[i] || 0;
+        const sum = price * qty;
+        return `<tr>
+            <td style="font-size:14px;color:#e0e0e8;">${escHtml(p.name)}</td>
+            <td style="text-align:right;color:#8b8fa4;">${price.toLocaleString('sv-SE')} kr</td>
+            <td style="text-align:center;"><input type="number" min="0" value="${qty}" style="width:70px;text-align:center;padding:6px 10px;border:1px solid #303348;border-radius:6px;background:#161822;color:#e0e0e8;font-size:14px;font-family:inherit;" onchange="updateInvoiceQty(${i},this.value)"></td>
+            <td style="text-align:right;font-weight:600;color:${sum > 0 ? '#4ade80' : '#6b7280'};">${sum.toLocaleString('sv-SE')} kr</td>
+        </tr>`;
+    }).join('');
+    updateInvoiceTotals();
+}
+
+function updateInvoiceQty(index, val) {
+    invoiceQty[index] = parseInt(val) || 0;
+    renderInvoiceProducts();
+}
+
+function updateInvoiceTotals() {
+    const c = getContract();
+    let total = 0;
+    c.products.forEach((p, i) => {
+        total += calcPrice(p.rekPrice, p.margin) * (invoiceQty[i] || 0);
+    });
+    const vat = Math.round(total * 0.25);
+    document.getElementById('invoiceTotal').textContent = total.toLocaleString('sv-SE') + ' kr';
+    document.getElementById('invoiceVat').textContent = vat.toLocaleString('sv-SE') + ' kr';
+    document.getElementById('invoiceTotalInc').textContent = (total + vat).toLocaleString('sv-SE') + ' kr';
+}
+
+function getNextInvoiceNr() {
+    let max = 1000;
+    Object.values(allInvoices).forEach(list => {
+        list.forEach(inv => { if (inv.nr > max) max = inv.nr; });
+    });
+    return max + 1;
+}
+
+function buildInvoiceData() {
+    const c = getContract();
+    const inv = c.invoice;
+    const items = [];
+    c.products.forEach((p, i) => {
+        const qty = invoiceQty[i] || 0;
+        if (qty > 0) {
+            const price = calcPrice(p.rekPrice, p.margin);
+            items.push({ name: p.name, price, qty, sum: price * qty });
+        }
+    });
+    if (items.length === 0) { alert('Lägg till antal på minst en produkt'); return null; }
+    const total = items.reduce((s, it) => s + it.sum, 0);
+    const vat = Math.round(total * 0.25);
+    return {
+        nr: getNextInvoiceNr(),
+        type: invoiceType,
+        date: new Date().toISOString(),
+        deliveryDate: invoiceType === 'pending' ? document.getElementById('inv-deliveryDate').value : '',
+        followupDate: invoiceType === 'pending' ? document.getElementById('inv-followupDate').value : '',
+        dueDate: getDueDate(inv.terms),
+        items,
+        total,
+        vat,
+        totalInc: total + vat,
+        invoice: inv,
+        clientName: client.name,
+        createdBy: currentUser.name,
+        status: 'unpaid'
+    };
+}
+
+function getDueDate(terms) {
+    const days = parseInt(terms) || 30;
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split('T')[0];
+}
+
+function createInvoice() {
+    const data = buildInvoiceData();
+    if (!data) return;
+    if (!allInvoices[clientId]) allInvoices[clientId] = [];
+    allInvoices[clientId].unshift(data);
+    localStorage.setItem(INVOICES_KEY, JSON.stringify(allInvoices));
+    invoiceQty = {};
+    renderInvoiceProducts();
+    renderInvoiceHistory();
+    alert(`Faktura #${data.nr} skapad!`);
+}
+
+function createAndDownloadInvoice() {
+    const data = buildInvoiceData();
+    if (!data) return;
+    if (!allInvoices[clientId]) allInvoices[clientId] = [];
+    allInvoices[clientId].unshift(data);
+    localStorage.setItem(INVOICES_KEY, JSON.stringify(allInvoices));
+    invoiceQty = {};
+    renderInvoiceProducts();
+    renderInvoiceHistory();
+    downloadInvoicePDF(data);
+}
+
+function downloadInvoicePDF(data) {
+    const inv = data.invoice;
+    const itemRows = data.items.map(it => `<tr>
+        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;">${escHtml(it.name)}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;text-align:right;">${it.price.toLocaleString('sv-SE')} kr</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;text-align:center;">${it.qty}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;text-align:right;font-weight:700;">${it.sum.toLocaleString('sv-SE')} kr</td>
+    </tr>`).join('');
+
+    const dateStr = new Date(data.date).toLocaleDateString('sv-SE');
+    const typeLabel = data.type === 'pending' ? 'Väntande faktura' : 'Faktura';
+    const deliveryNote = data.deliveryDate ? `<br>Leveransdatum: ${data.deliveryDate}` : '';
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Faktura #${data.nr}</title>
+<style>
+    @media print { @page { margin: 20mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color:#1a1a2e; padding:40px; }
+    .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:36px; padding-bottom:24px; border-bottom:2px solid #1a1a2e; }
+    .logo { font-size:28px; font-weight:800; } .logo span { color:#6366f1; }
+    .doc-info { text-align:right; font-size:13px; color:#555; line-height:1.7; }
+    .doc-info strong { display:block; font-size:20px; color:#1a1a2e; margin-bottom:4px; }
+    .parties { display:flex; gap:40px; margin-bottom:32px; }
+    .party { flex:1; } .party h3 { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#888; margin-bottom:10px; }
+    .party p { font-size:14px; line-height:1.7; }
+    table { width:100%; border-collapse:collapse; margin-bottom:24px; }
+    th { text-align:left; padding:10px 16px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#888; background:#f8f9fa; border-bottom:2px solid #e5e7eb; }
+    th.right { text-align:right; } th.center { text-align:center; }
+    .totals { margin-left:auto; width:300px; }
+    .totals .row { display:flex; justify-content:space-between; padding:6px 0; font-size:14px; }
+    .totals .row.grand { border-top:2px solid #1a1a2e; padding-top:10px; margin-top:6px; font-size:18px; font-weight:700; }
+    .terms { margin-top:32px; padding:20px; background:#f8f9fa; border-radius:8px; font-size:13px; line-height:1.8; }
+    .terms strong { display:block; margin-bottom:4px; font-size:14px; }
+    .footer { margin-top:40px; text-align:center; font-size:11px; color:#aaa; border-top:1px solid #e5e7eb; padding-top:16px; }
+    ${data.type === 'pending' ? '.pending-badge { display:inline-block; padding:4px 12px; background:#fff4e0; color:#92400e; border-radius:20px; font-size:12px; font-weight:600; margin-left:8px; }' : ''}
+</style></head><body>
+
+<div class="header">
+    <div><div class="logo">Virea <span>AB</span></div></div>
+    <div class="doc-info">
+        <strong>${typeLabel} #${data.nr}${data.type === 'pending' ? ' <span class="pending-badge">Väntande</span>' : ''}</strong>
+        Fakturadatum: ${dateStr}${deliveryNote}<br>
+        Förfallodatum: ${data.dueDate}<br>
+        Ref: ${escHtml(inv.reference || '-')}
+    </div>
+</div>
+
+<div class="parties">
+    <div class="party">
+        <h3>Från</h3>
+        <p><strong>Virea AB</strong></p>
+    </div>
+    <div class="party">
+        <h3>Till</h3>
+        <p>
+            <strong>${escHtml(inv.company || client.name)}</strong><br>
+            ${inv.orgnr ? 'Org.nr: ' + escHtml(inv.orgnr) + '<br>' : ''}
+            ${escHtml(inv.address || '')}<br>
+            ${escHtml(inv.postal || '')}
+        </p>
+    </div>
+</div>
+
+<table>
+    <thead><tr><th>Produkt</th><th class="right">Pris/st</th><th class="center">Antal</th><th class="right">Summa</th></tr></thead>
+    <tbody>${itemRows}</tbody>
+</table>
+
+<div class="totals">
+    <div class="row"><span>Summa exkl. moms</span><span>${data.total.toLocaleString('sv-SE')} kr</span></div>
+    <div class="row"><span>Moms 25%</span><span>${data.vat.toLocaleString('sv-SE')} kr</span></div>
+    <div class="row grand"><span>Att betala</span><span>${data.totalInc.toLocaleString('sv-SE')} kr</span></div>
+</div>
+
+<div class="terms">
+    <strong>Betalningsvillkor</strong>
+    ${escHtml(inv.terms || '30 dagar netto')}<br>
+    ${inv.email ? 'E-faktura: ' + escHtml(inv.email) : ''}
+</div>
+
+<div class="footer">Virea AB — Faktura #${data.nr} — ${dateStr}</div>
+
+</body></html>`;
+
+    const win = window.open('', '_blank');
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => win.print(), 400);
+}
+
+function renderInvoiceHistory() {
+    const invoices = allInvoices[clientId] || [];
+    const container = document.getElementById('invoiceHistory');
+    if (invoices.length === 0) {
+        container.innerHTML = '<div class="no-invoices">Inga fakturor ännu</div>';
+        return;
+    }
+    const today = new Date().toISOString().split('T')[0];
+    container.innerHTML = invoices.map((inv, i) => {
+        const dateStr = new Date(inv.date).toLocaleDateString('sv-SE');
+        const typeLabel = inv.type === 'pending' ? 'Väntande' : 'Leverans';
+        const badgeClass = inv.status === 'paid' ? 'paid' : inv.type === 'pending' ? 'pending' : 'direct';
+        const statusLabel = inv.status === 'paid' ? 'Betald' : typeLabel;
+        const isOverdue = inv.followupDate && inv.followupDate <= today && inv.status !== 'paid';
+        const followupNote = inv.followupDate
+            ? `<span style="margin-left:8px;font-size:11px;color:${isOverdue ? '#f87171' : '#6b7280'};">${isOverdue ? '⚠ Avstämning förfallen: ' : 'Avstämning: '}${inv.followupDate}</span>`
+            : '';
+        return `<div class="hist-item" style="${isOverdue ? 'border-color:#f87171;' : ''}">
+            <div class="hist-left">
+                <div class="hist-id">Faktura #${inv.nr} <span class="inv-badge ${badgeClass}">${statusLabel}</span>${followupNote}</div>
+                <div class="hist-meta">${dateStr} — ${inv.items.length} produkt${inv.items.length > 1 ? 'er' : ''} — Skapad av ${escHtml(inv.createdBy)}</div>
+            </div>
+            <div class="hist-right">
+                <div class="hist-amount">${inv.totalInc.toLocaleString('sv-SE')} kr</div>
+                <div class="hist-actions">
+                    ${inv.status !== 'paid' ? `<button onclick="markPaid(${i})">Markera betald</button>` : ''}
+                    <button onclick="redownloadInvoice(${i})">PDF</button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function markPaid(index) {
+    const invoices = allInvoices[clientId];
+    if (!invoices || !invoices[index]) return;
+    invoices[index].status = 'paid';
+    localStorage.setItem(INVOICES_KEY, JSON.stringify(allInvoices));
+    renderInvoiceHistory();
+}
+
+function redownloadInvoice(index) {
+    const invoices = allInvoices[clientId];
+    if (!invoices || !invoices[index]) return;
+    downloadInvoicePDF(invoices[index]);
+}
+
+// Init invoice tab products
+renderInvoiceProducts();
+
+function downloadPDF() {
+    const c = getContract();
+    const inv = c.invoice;
+    const today = new Date().toLocaleDateString('sv-SE');
+
+    const productRows = c.products.map(p => {
+        const price = calcPrice(p.rekPrice, p.margin);
+        return `<tr>
+            <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;">${escHtml(p.name)}</td>
+            <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;text-align:right;color:#888;">${p.rekPrice.toLocaleString('sv-SE')} kr</td>
+            <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;text-align:center;">${p.margin}%</td>
+            <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;text-align:right;font-weight:700;">${price.toLocaleString('sv-SE')} kr</td>
+        </tr>`;
+    }).join('');
+
+    const totalRek = c.products.reduce((s, p) => s + p.rekPrice, 0);
+    const totalPrice = c.products.reduce((s, p) => s + calcPrice(p.rekPrice, p.margin), 0);
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Avtal - ${escHtml(client.name)}</title>
+<style>
+    @media print { @page { margin: 20mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color:#1a1a2e; padding:40px; }
+    .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:40px; padding-bottom:24px; border-bottom:2px solid #1a1a2e; }
+    .logo { font-size:28px; font-weight:800; color:#1a1a2e; }
+    .logo span { color:#6366f1; }
+    .doc-info { text-align:right; font-size:13px; color:#555; }
+    .doc-info strong { display:block; font-size:18px; color:#1a1a2e; margin-bottom:4px; }
+    .parties { display:flex; gap:40px; margin-bottom:36px; }
+    .party { flex:1; }
+    .party h3 { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#888; margin-bottom:10px; }
+    .party p { font-size:14px; line-height:1.7; }
+    .section-title { font-size:16px; font-weight:700; margin:32px 0 12px; padding-bottom:8px; border-bottom:1px solid #e5e7eb; }
+    table { width:100%; border-collapse:collapse; }
+    th { text-align:left; padding:10px 16px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#888; background:#f8f9fa; border-bottom:2px solid #e5e7eb; }
+    th.right { text-align:right; }
+    th.center { text-align:center; }
+    .total-row td { border-top:2px solid #1a1a2e; font-weight:700; font-size:15px; padding:12px 16px; }
+    .terms { margin-top:36px; padding:20px; background:#f8f9fa; border-radius:8px; font-size:13px; line-height:1.8; }
+    .terms strong { display:block; margin-bottom:6px; font-size:14px; }
+    .signature { display:flex; gap:60px; margin-top:60px; }
+    .sig-block { flex:1; }
+    .sig-block .line { border-bottom:1px solid #1a1a2e; height:40px; margin-bottom:6px; }
+    .sig-block .label { font-size:12px; color:#888; }
+    .footer { margin-top:40px; text-align:center; font-size:11px; color:#aaa; border-top:1px solid #e5e7eb; padding-top:16px; }
+</style></head><body>
+
+<div class="header">
+    <div>
+        <div class="logo">Virea <span>AB</span></div>
+    </div>
+    <div class="doc-info">
+        <strong>Avtal / Prisöverenskommelse</strong>
+        Datum: ${today}<br>
+        Ref: ${escHtml(inv.reference || '-')}
+    </div>
+</div>
+
+<div class="parties">
+    <div class="party">
+        <h3>Leverantör</h3>
+        <p><strong>Virea AB</strong></p>
+    </div>
+    <div class="party">
+        <h3>Kund</h3>
+        <p>
+            <strong>${escHtml(inv.company || client.name)}</strong><br>
+            ${inv.orgnr ? 'Org.nr: ' + escHtml(inv.orgnr) + '<br>' : ''}
+            ${escHtml(inv.address || '')}<br>
+            ${escHtml(inv.postal || '')}<br>
+            ${inv.email ? 'E-faktura: ' + escHtml(inv.email) : ''}
+        </p>
+    </div>
+</div>
+
+<div class="section-title">Produkter & Prissättning</div>
+<table>
+    <thead>
+        <tr>
+            <th>Produkt</th>
+            <th class="right">Rek. pris</th>
+            <th class="center">Marginal</th>
+            <th class="right">Ert pris</th>
+        </tr>
+    </thead>
+    <tbody>
+        ${productRows}
+        <tr class="total-row">
+            <td>Totalt</td>
+            <td style="text-align:right;color:#888;">${totalRek.toLocaleString('sv-SE')} kr</td>
+            <td></td>
+            <td style="text-align:right;">${totalPrice.toLocaleString('sv-SE')} kr</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="terms">
+    <strong>Villkor</strong>
+    Betalningsvillkor: ${escHtml(inv.terms || '30 dagar netto')}<br>
+    Priserna gäller tills vidare om inget annat avtalats.<br>
+    Alla priser är exklusive moms.
+</div>
+
+<div class="signature">
+    <div class="sig-block">
+        <div class="line"></div>
+        <div class="label">Virea AB — Namn & datum</div>
+    </div>
+    <div class="sig-block">
+        <div class="line"></div>
+        <div class="label">${escHtml(inv.company || client.name)} — Namn & datum</div>
+    </div>
+</div>
+
+<div class="footer">Genererat av Virea AB Butiksförsäljning — ${today}</div>
+
+</body></html>`;
+
+    const win = window.open('', '_blank');
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => { win.print(); }, 400);
+}
+</script>
+
+</body>
+</html>

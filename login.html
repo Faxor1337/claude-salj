@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logga in - Butiksförsäljning Virea AB</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1117;
+            color: #e0e0e8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .login-card {
+            background: #161822;
+            border: 1px solid #252836;
+            border-radius: 16px;
+            padding: 44px;
+            width: 400px;
+            max-width: 90vw;
+        }
+        .login-card h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: #fff;
+        }
+        .login-card p.subtitle {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 28px;
+        }
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #8b8fa4;
+            margin-bottom: 5px;
+            margin-top: 16px;
+        }
+        input {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1px solid #303348;
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: inherit;
+            outline: none;
+            background: #1e2030;
+            color: #e0e0e8;
+            transition: border-color 0.2s;
+        }
+        input::placeholder { color: #4b5068; }
+        input:focus { border-color: #6366f1; }
+        .login-btn {
+            width: 100%;
+            margin-top: 24px;
+            padding: 12px;
+            background: #6366f1;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.15s;
+        }
+        .login-btn:hover { background: #5558e6; }
+        .error {
+            background: rgba(239,68,68,0.12);
+            color: #f87171;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-top: 16px;
+            display: none;
+        }
+        .error.visible { display: block; }
+        .logo {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: 700;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-card">
+    <div class="logo">V</div>
+    <h1>Logga in</h1>
+    <p class="subtitle">Butiksförsäljning - Virea AB</p>
+
+    <form onsubmit="handleLogin(event)">
+        <label for="username">Användarnamn</label>
+        <input type="text" id="username" autocomplete="username" autofocus required>
+
+        <label for="password">Lösenord</label>
+        <input type="password" id="password" autocomplete="current-password" required>
+
+        <div class="error" id="error">Fel användarnamn eller lösenord</div>
+
+        <button type="submit" class="login-btn">Logga in</button>
+    </form>
+</div>
+
+<script src="auth.js"></script>
+<script>
+// If already logged in, redirect
+if (getCurrentUser()) {
+    window.location.href = 'index.html';
+}
+
+function handleLogin(e) {
+    e.preventDefault();
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const user = login(username, password);
+    if (user) {
+        window.location.href = 'index.html';
+    } else {
+        document.getElementById('error').classList.add('visible');
+    }
+}
+
+// Hide error on input
+document.getElementById('username').addEventListener('input', () => document.getElementById('error').classList.remove('visible'));
+document.getElementById('password').addEventListener('input', () => document.getElementById('error').classList.remove('visible'));
+</script>
+
+</body>
+</html>
