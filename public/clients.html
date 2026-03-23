@@ -187,7 +187,7 @@ function renderTable() {
             <td>${escHtml(c.contactPerson || '')}</td>
             <td>${escHtml(c.phone || '')}</td>
             <td>${emailCell}</td>
-            <td class="revenue">${Number(c.revenue || 0).toLocaleString('sv-SE')} kr</td>
+            <td class="revenue">${formatMkr(c.revenue)}</td>
             <td>${c.startDate || ''}</td>
             <td><input class="inline-comment" type="text" value="${commentVal}" placeholder="Lägg till kommentar..." title="${commentVal}" onchange="saveComment(${c.id}, this.value)" oninput="this.title=this.value" onclick="event.stopPropagation()"></td>
             <td><button class="btn-edit" onclick="event.stopPropagation();editClient(${c.id})">Redigera</button></td>
@@ -196,7 +196,7 @@ function renderTable() {
 
     // Stats
     document.getElementById('totalClients').textContent = clients.length;
-    document.getElementById('totalRevenue').textContent = clients.reduce((s, c) => s + Number(c.revenue || 0), 0).toLocaleString('sv-SE') + ' kr';
+    document.getElementById('totalRevenue').textContent = formatMkr(clients.reduce((s, c) => s + Number(c.revenue || 0), 0));
     if (clients.length > 0) {
         const latest = [...clients].sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''))[0];
         document.getElementById('latestClient').textContent = latest.name;
@@ -208,6 +208,14 @@ async function saveComment(id, value) {
     if (!c) return;
     c.comment = value.trim();
     await API.updateClient(id, c);
+}
+
+function formatMkr(val) {
+    const n = Number(val || 0);
+    if (n === 0) return '0 kr';
+    if (n >= 1000000) return Math.round(n / 1000000) + ' Mkr';
+    if (n >= 1000) return Math.round(n / 1000) + ' tkr';
+    return n.toLocaleString('sv-SE') + ' kr';
 }
 
 function escHtml(str) {

@@ -449,6 +449,14 @@ function switchTab(tab) {
     if (tab === 'faktura') renderInvoiceHistory();
 }
 
+function formatMkr(val) {
+    const n = Number(val || 0);
+    if (n === 0) return '0 kr';
+    if (n >= 1000000) return Math.round(n / 1000000) + ' Mkr';
+    if (n >= 1000) return Math.round(n / 1000) + ' tkr';
+    return n.toLocaleString('sv-SE') + ' kr';
+}
+
 function escHtml(str) {
     const d = document.createElement('div');
     d.textContent = str;
@@ -977,7 +985,7 @@ async function init() {
         `;
         document.getElementById('clientInfo').innerHTML = `
             <div class="info-row"><span class="info-label">Kund sedan</span><span class="info-value">${client.startDate || '-'}</span></div>
-            <div class="info-row"><span class="info-label">Omsättning/mån</span><span class="info-value">${Number(client.revenue || 0).toLocaleString('sv-SE')} kr</span></div>
+            <div class="info-row"><span class="info-label">Omsättning/mån</span><span class="info-value">${formatMkr(client.revenue)}</span></div>
             <div class="info-row"><span class="info-label">Kommentar</span><span class="info-value">${escHtml(client.comment || '-')}</span></div>
         `;
         document.getElementById('locationInfo').innerHTML = `

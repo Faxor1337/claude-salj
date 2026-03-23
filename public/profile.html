@@ -162,6 +162,14 @@ const storeId = parseInt(params.get('id'));
 let store = null;
 let storeNotes = [];
 
+function formatMkr(val) {
+    const n = Number(val || 0);
+    if (n === 0) return '0 kr';
+    if (n >= 1000000) return Math.round(n / 1000000) + ' Mkr';
+    if (n >= 1000) return Math.round(n / 1000) + ' tkr';
+    return n.toLocaleString('sv-SE') + ' kr';
+}
+
 function escHtml(str) {
     const d = document.createElement('div');
     d.textContent = str;
@@ -244,7 +252,7 @@ async function init() {
 
         document.getElementById('salesInfo').innerHTML = `
             <div class="info-row"><span class="info-label">Status</span><span class="info-value"><span class="status ${store.status.toLowerCase()}">${escHtml(store.status)}</span></span></div>
-            <div class="info-row"><span class="info-label">Omsättning</span><span class="info-value">${Number(store.revenue || 0).toLocaleString('sv-SE')} kr</span></div>
+            <div class="info-row"><span class="info-label">Omsättning</span><span class="info-value">${formatMkr(store.revenue)}</span></div>
             <div class="info-row"><span class="info-label">Kommentar</span><span class="info-value">${escHtml(store.comment || '-')}</span></div>
         `;
 
