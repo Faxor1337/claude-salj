@@ -246,7 +246,8 @@ function renderTable() {
 
     filtered.sort((a, b) => {
         let va = a[sortField] || '', vb = b[sortField] || '';
-        if (typeof va === 'string') va = va.toLowerCase();
+        if (sortField === 'revenue') { va = Number(va); vb = Number(vb); }
+        else if (typeof va === 'string') va = va.toLowerCase();
         if (typeof vb === 'string') vb = vb.toLowerCase();
         if (va < vb) return sortAsc ? -1 : 1;
         if (va > vb) return sortAsc ? 1 : -1;
