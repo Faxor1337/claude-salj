@@ -977,7 +977,7 @@ async function init() {
         `;
         document.getElementById('clientInfo').innerHTML = `
             <div class="info-row"><span class="info-label">Kund sedan</span><span class="info-value">${client.startDate || '-'}</span></div>
-            <div class="info-row"><span class="info-label">Omsättning/mån</span><span class="info-value">${(client.revenue || 0).toLocaleString('sv-SE')} kr</span></div>
+            <div class="info-row"><span class="info-label">Omsättning/mån</span><span class="info-value">${Number(client.revenue || 0).toLocaleString('sv-SE')} kr</span></div>
             <div class="info-row"><span class="info-label">Kommentar</span><span class="info-value">${escHtml(client.comment || '-')}</span></div>
         `;
         document.getElementById('locationInfo').innerHTML = `

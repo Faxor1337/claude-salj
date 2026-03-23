@@ -187,7 +187,7 @@ function renderTable() {
             <td>${escHtml(c.contactPerson || '')}</td>
             <td>${escHtml(c.phone || '')}</td>
             <td>${emailCell}</td>
-            <td class="revenue">${(c.revenue || 0).toLocaleString('sv-SE')} kr</td>
+            <td class="revenue">${Number(c.revenue || 0).toLocaleString('sv-SE')} kr</td>
             <td>${c.startDate || ''}</td>
             <td><input class="inline-comment" type="text" value="${commentVal}" placeholder="Lägg till kommentar..." title="${commentVal}" onchange="saveComment(${c.id}, this.value)" oninput="this.title=this.value" onclick="event.stopPropagation()"></td>
             <td><button class="btn-edit" onclick="event.stopPropagation();editClient(${c.id})">Redigera</button></td>
@@ -196,7 +196,7 @@ function renderTable() {
 
     // Stats
     document.getElementById('totalClients').textContent = clients.length;
-    document.getElementById('totalRevenue').textContent = clients.reduce((s, c) => s + (c.revenue || 0), 0).toLocaleString('sv-SE') + ' kr';
+    document.getElementById('totalRevenue').textContent = clients.reduce((s, c) => s + Number(c.revenue || 0), 0).toLocaleString('sv-SE') + ' kr';
     if (clients.length > 0) {
         const latest = [...clients].sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''))[0];
         document.getElementById('latestClient').textContent = latest.name;

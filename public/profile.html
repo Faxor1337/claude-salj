@@ -244,7 +244,7 @@ async function init() {
 
         document.getElementById('salesInfo').innerHTML = `
             <div class="info-row"><span class="info-label">Status</span><span class="info-value"><span class="status ${store.status.toLowerCase()}">${escHtml(store.status)}</span></span></div>
-            <div class="info-row"><span class="info-label">Omsättning</span><span class="info-value">${(store.revenue || 0).toLocaleString('sv-SE')} kr</span></div>
+            <div class="info-row"><span class="info-label">Omsättning</span><span class="info-value">${Number(store.revenue || 0).toLocaleString('sv-SE')} kr</span></div>
             <div class="info-row"><span class="info-label">Kommentar</span><span class="info-value">${escHtml(store.comment || '-')}</span></div>
         `;
 

@@ -279,7 +279,7 @@ function renderTable() {
                 </select>
             </td>
             <td><input class="inline-comment" type="text" value="${commentVal}" placeholder="Lägg till kommentar..." title="${commentVal}" onchange="saveComment(${c.id}, this.value)" oninput="this.title=this.value" onclick="event.stopPropagation()"></td>
-            <td class="revenue">${(c.revenue || 0).toLocaleString('sv-SE')} kr</td>
+            <td class="revenue">${Number(c.revenue || 0).toLocaleString('sv-SE')} kr</td>
             <td>${contactedCell}</td>
             <td>${esc(c.phone || '')}</td>
             <td>${emailCell}</td>
@@ -290,7 +290,7 @@ function renderTable() {
     // Stats
     document.getElementById('totalCustomers').textContent = customers.length;
     document.getElementById('activeCustomers').textContent = customers.filter(c => c.status === 'Intresserad').length;
-    document.getElementById('totalRevenue').textContent = customers.reduce((s, c) => s + (c.revenue || 0), 0).toLocaleString('sv-SE') + ' kr';
+    document.getElementById('totalRevenue').textContent = customers.reduce((s, c) => s + Number(c.revenue || 0), 0).toLocaleString('sv-SE') + ' kr';
 }
 
 async function moveToClients(id) {
