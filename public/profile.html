@@ -149,50 +149,18 @@
     <div id="notesList"></div>
 </div>
 
+<script src="api.js"></script>
 <script src="auth.js"></script>
 <script src="nav.js"></script>
 <script>
 const currentUser = requireAuth();
 renderNav('prospects');
 
-const STORAGE_KEY = 'claude-salj-customers-v4';
-const NOTES_KEY = 'claude-salj-notes';
-
 const params = new URLSearchParams(window.location.search);
 const storeId = parseInt(params.get('id'));
 
-let customers = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-let allNotes = JSON.parse(localStorage.getItem(NOTES_KEY) || '{}');
-
-const store = customers.find(c => c.id === storeId);
-
-if (!store) {
-    document.getElementById('storeName').textContent = 'Butik hittades inte';
-} else {
-    document.title = store.name + ' - Virea AB';
-    document.getElementById('storeName').textContent = store.name;
-    document.getElementById('storeLocation').textContent = `${store.address || ''}, ${store.city}`;
-
-    const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.name + ', ' + (store.address || '') + ', ' + store.city)}`;
-
-    document.getElementById('contactInfo').innerHTML = `
-        <div class="info-row"><span class="info-label">Telefon</span><span class="info-value">${escHtml(store.phone || '-')}</span></div>
-        <div class="info-row"><span class="info-label">Email</span><span class="info-value">${store.email ? `<a href="mailto:${escHtml(store.email)}">${escHtml(store.email)}</a>` : '-'}</span></div>
-        <div class="info-row"><span class="info-label">Kontaktad av</span><span class="info-value">${escHtml(store.contactedBy || '-')}</span></div>
-    `;
-
-    document.getElementById('salesInfo').innerHTML = `
-        <div class="info-row"><span class="info-label">Status</span><span class="info-value"><span class="status ${store.status.toLowerCase()}">${escHtml(store.status)}</span></span></div>
-        <div class="info-row"><span class="info-label">Omsättning</span><span class="info-value">${(store.revenue || 0).toLocaleString('sv-SE')} kr</span></div>
-        <div class="info-row"><span class="info-label">Kommentar</span><span class="info-value">${escHtml(store.comment || '-')}</span></div>
-    `;
-
-    document.getElementById('locationInfo').innerHTML = `
-        <div class="info-row"><span class="info-label">Adress</span><span class="info-value">${escHtml(store.address || '-')}</span></div>
-        <div class="info-row"><span class="info-label">Stad</span><span class="info-value">${escHtml(store.city)}</span></div>
-        <div class="info-row"><span class="info-label">Karta</span><span class="info-value"><a href="${mapsLink}" target="_blank" rel="noopener">Öppna i Google Maps</a></span></div>
-    `;
-}
+let store = null;
+let storeNotes = [];
 
 function escHtml(str) {
     const d = document.createElement('div');
@@ -204,15 +172,11 @@ function editInModal() {
     window.location.href = `index.html?edit=${storeId}`;
 }
 
-function moveToClients() {
+async function moveToClients() {
     if (!store) return;
     if (!confirm(`Flytta "${store.name}" till Våra butiker?`)) return;
 
-    const CLIENTS_KEY = 'claude-salj-clients-v1';
-    let clients = JSON.parse(localStorage.getItem(CLIENTS_KEY) || '[]');
-    const newId = clients.length ? Math.max(...clients.map(x => x.id)) + 1 : 1;
-    clients.push({
-        id: newId,
+    await API.createClient({
         name: store.name,
         city: store.city,
         address: store.address || '',
@@ -223,49 +187,33 @@ function moveToClients() {
         startDate: new Date().toISOString().split('T')[0],
         comment: store.comment || ''
     });
-    localStorage.setItem(CLIENTS_KEY, JSON.stringify(clients));
 
-    customers = customers.filter(x => x.id !== storeId);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(customers));
+    await API.deleteCustomer(storeId);
 
     window.location.href = 'clients.html';
 }
 
 // --- Notes ---
-function getStoreNotes() {
-    return allNotes[storeId] || [];
-}
-
-function saveNotes() {
-    localStorage.setItem(NOTES_KEY, JSON.stringify(allNotes));
-}
-
-function addNote() {
+async function addNote() {
     const text = document.getElementById('noteText').value.trim();
     if (!text) return;
 
-    if (!allNotes[storeId]) allNotes[storeId] = [];
-    allNotes[storeId].unshift({
-        text,
-        author: currentUser.name,
-        date: new Date().toISOString()
-    });
-    saveNotes();
+    await API.addNote({ entity_type: 'customer', entity_id: storeId, text });
     document.getElementById('noteText').value = '';
+    storeNotes = await API.getNotes('customer', storeId);
     renderNotes();
 }
 
 function renderNotes() {
-    const notes = getStoreNotes();
     const container = document.getElementById('notesList');
 
-    if (notes.length === 0) {
+    if (storeNotes.length === 0) {
         container.innerHTML = '<div class="no-notes">Inga anteckningar ännu</div>';
         return;
     }
 
-    container.innerHTML = notes.map(n => {
-        const date = new Date(n.date);
+    container.innerHTML = storeNotes.map(n => {
+        const date = new Date(n.date || n.created_at);
         const dateStr = date.toLocaleDateString('sv-SE') + ' ' + date.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
         return `
         <div class="note-item">
@@ -275,7 +223,43 @@ function renderNotes() {
     }).join('');
 }
 
-renderNotes();
+async function init() {
+    const customers = await API.getCustomers();
+    store = customers.find(c => c.id === storeId);
+
+    if (!store) {
+        document.getElementById('storeName').textContent = 'Butik hittades inte';
+    } else {
+        document.title = store.name + ' - Virea AB';
+        document.getElementById('storeName').textContent = store.name;
+        document.getElementById('storeLocation').textContent = `${store.address || ''}, ${store.city}`;
+
+        const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.name + ', ' + (store.address || '') + ', ' + store.city)}`;
+
+        document.getElementById('contactInfo').innerHTML = `
+            <div class="info-row"><span class="info-label">Telefon</span><span class="info-value">${escHtml(store.phone || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Email</span><span class="info-value">${store.email ? `<a href="mailto:${escHtml(store.email)}">${escHtml(store.email)}</a>` : '-'}</span></div>
+            <div class="info-row"><span class="info-label">Kontaktad av</span><span class="info-value">${escHtml(store.contactedBy || '-')}</span></div>
+        `;
+
+        document.getElementById('salesInfo').innerHTML = `
+            <div class="info-row"><span class="info-label">Status</span><span class="info-value"><span class="status ${store.status.toLowerCase()}">${escHtml(store.status)}</span></span></div>
+            <div class="info-row"><span class="info-label">Omsättning</span><span class="info-value">${(store.revenue || 0).toLocaleString('sv-SE')} kr</span></div>
+            <div class="info-row"><span class="info-label">Kommentar</span><span class="info-value">${escHtml(store.comment || '-')}</span></div>
+        `;
+
+        document.getElementById('locationInfo').innerHTML = `
+            <div class="info-row"><span class="info-label">Adress</span><span class="info-value">${escHtml(store.address || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Stad</span><span class="info-value">${escHtml(store.city)}</span></div>
+            <div class="info-row"><span class="info-label">Karta</span><span class="info-value"><a href="${mapsLink}" target="_blank" rel="noopener">Öppna i Google Maps</a></span></div>
+        `;
+    }
+
+    storeNotes = await API.getNotes('customer', storeId);
+    renderNotes();
+}
+
+init();
 </script>
 
 </body>

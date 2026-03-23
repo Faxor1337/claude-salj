@@ -116,21 +116,26 @@
     </form>
 </div>
 
-<script src="auth.js"></script>
 <script>
 // If already logged in, redirect
-if (getCurrentUser()) {
-    window.location.href = 'index.html';
-}
+fetch('/api/me').then(r => { if (r.ok) window.location.href = '/index.html'; });
 
-function handleLogin(e) {
+async function handleLogin(e) {
     e.preventDefault();
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
-    const user = login(username, password);
-    if (user) {
-        window.location.href = 'index.html';
-    } else {
+    try {
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        if (res.ok) {
+            window.location.href = '/index.html';
+        } else {
+            document.getElementById('error').classList.add('visible');
+        }
+    } catch {
         document.getElementById('error').classList.add('visible');
     }
 }

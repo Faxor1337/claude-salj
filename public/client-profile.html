@@ -421,25 +421,23 @@
 </div>
 </div>
 
+<script src="api.js"></script>
 <script src="auth.js"></script>
 <script src="nav.js"></script>
 <script>
 const currentUser = requireAuth();
 renderNav('clients');
 
-const CLIENTS_KEY = 'claude-salj-clients-v1';
-const NOTES_KEY = 'claude-salj-client-notes';
-const CONTRACTS_KEY = 'claude-salj-contracts';
-
 const params = new URLSearchParams(window.location.search);
 const clientId = parseInt(params.get('id'));
 const initialTab = params.get('tab');
 
-let clients = JSON.parse(localStorage.getItem(CLIENTS_KEY) || '[]');
-let allNotes = JSON.parse(localStorage.getItem(NOTES_KEY) || '{}');
-let allContracts = JSON.parse(localStorage.getItem(CONTRACTS_KEY) || '{}');
-
-const client = clients.find(c => c.id === clientId);
+let client = null;
+let clientNotes = [];
+let contractData = null;
+let clientInvoices = [];
+let invoiceType = 'direct';
+let invoiceQty = {};
 
 // --- Tabs ---
 function switchTab(tab) {
@@ -449,35 +447,6 @@ function switchTab(tab) {
     const tabIndex = { overview: 0, avtal: 1, faktura: 2 }[tab] || 0;
     document.querySelectorAll('.tab')[tabIndex].classList.add('active');
     if (tab === 'faktura') renderInvoiceHistory();
-}
-
-if (initialTab === 'avtal') switchTab('avtal');
-
-// --- Overview ---
-if (!client) {
-    document.getElementById('storeName').textContent = 'Butik hittades inte';
-} else {
-    document.title = client.name + ' - Virea AB';
-    document.getElementById('storeName').textContent = client.name;
-    document.getElementById('storeLocation').textContent = `${client.address || ''}, ${client.city}`;
-
-    const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.name + ', ' + (client.address || '') + ', ' + client.city)}`;
-
-    document.getElementById('contactInfo').innerHTML = `
-        <div class="info-row"><span class="info-label">Kontaktperson</span><span class="info-value">${escHtml(client.contactPerson || '-')}</span></div>
-        <div class="info-row"><span class="info-label">Telefon</span><span class="info-value">${escHtml(client.phone || '-')}</span></div>
-        <div class="info-row"><span class="info-label">Email</span><span class="info-value">${client.email ? `<a href="mailto:${escHtml(client.email)}">${escHtml(client.email)}</a>` : '-'}</span></div>
-    `;
-    document.getElementById('clientInfo').innerHTML = `
-        <div class="info-row"><span class="info-label">Kund sedan</span><span class="info-value">${client.startDate || '-'}</span></div>
-        <div class="info-row"><span class="info-label">Omsättning/mån</span><span class="info-value">${(client.revenue || 0).toLocaleString('sv-SE')} kr</span></div>
-        <div class="info-row"><span class="info-label">Kommentar</span><span class="info-value">${escHtml(client.comment || '-')}</span></div>
-    `;
-    document.getElementById('locationInfo').innerHTML = `
-        <div class="info-row"><span class="info-label">Adress</span><span class="info-value">${escHtml(client.address || '-')}</span></div>
-        <div class="info-row"><span class="info-label">Stad</span><span class="info-value">${escHtml(client.city)}</span></div>
-        <div class="info-row"><span class="info-label">Karta</span><span class="info-value"><a href="${mapsLink}" target="_blank" rel="noopener">Öppna i Google Maps</a></span></div>
-    `;
 }
 
 function escHtml(str) {
@@ -491,38 +460,31 @@ function editInModal() {
 }
 
 // --- Notes ---
-function getClientNotes() { return allNotes[clientId] || []; }
-function saveNotes() { localStorage.setItem(NOTES_KEY, JSON.stringify(allNotes)); }
-
-function addNote() {
+async function addNote() {
     const text = document.getElementById('noteText').value.trim();
     if (!text) return;
-    if (!allNotes[clientId]) allNotes[clientId] = [];
-    allNotes[clientId].unshift({ text, author: currentUser.name, date: new Date().toISOString() });
-    saveNotes();
+    await API.addNote({ entity_type: 'client', entity_id: clientId, text });
     document.getElementById('noteText').value = '';
+    clientNotes = await API.getNotes('client', clientId);
     renderNotes();
 }
 
 function renderNotes() {
-    const notes = getClientNotes();
     const container = document.getElementById('notesList');
-    if (notes.length === 0) {
+    if (clientNotes.length === 0) {
         container.innerHTML = '<div class="no-notes">Inga anteckningar ännu</div>';
         return;
     }
-    container.innerHTML = notes.map(n => {
-        const date = new Date(n.date);
+    container.innerHTML = clientNotes.map(n => {
+        const date = new Date(n.date || n.created_at);
         const dateStr = date.toLocaleDateString('sv-SE') + ' ' + date.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
         return `<div class="note-item"><div class="note-meta">${escHtml(n.author)} - ${dateStr}</div><div class="note-text">${escHtml(n.text)}</div></div>`;
     }).join('');
 }
 
-renderNotes();
-
 // --- Contract / Invoice ---
 function getContract() {
-    return allContracts[clientId] || {
+    return contractData || {
         invoice: { company: '', orgnr: '', address: '', postal: '', reference: '', terms: '30 dagar netto', email: '' },
         products: [
             { name: 'Produkt A', rekPrice: 100, margin: 30 },
@@ -533,9 +495,9 @@ function getContract() {
     };
 }
 
-function saveContract(contract) {
-    allContracts[clientId] = contract;
-    localStorage.setItem(CONTRACTS_KEY, JSON.stringify(allContracts));
+async function saveContractToServer(contract) {
+    contractData = contract;
+    await API.saveContract(clientId, contract);
 }
 
 function flashSaved(id) {
@@ -556,7 +518,7 @@ function loadInvoice() {
     document.getElementById('globalMargin').value = c.globalMargin || 30;
 }
 
-function saveInvoice() {
+async function saveInvoice() {
     const c = getContract();
     c.invoice = {
         company: document.getElementById('inv-company').value,
@@ -567,7 +529,7 @@ function saveInvoice() {
         terms: document.getElementById('inv-terms').value,
         email: document.getElementById('inv-email').value,
     };
-    saveContract(c);
+    await saveContractToServer(c);
     flashSaved('invoiceSaved');
 }
 
@@ -591,54 +553,46 @@ function renderProducts() {
     }).join('');
 }
 
-function updateProduct(index, field, value) {
+async function updateProduct(index, field, value) {
     const c = getContract();
     if (field === 'name') c.products[index].name = value;
     if (field === 'margin') c.products[index].margin = parseFloat(value) || 0;
     if (field === 'rekPrice') c.products[index].rekPrice = parseFloat(value) || 0;
-    saveContract(c);
+    await saveContractToServer(c);
     renderProducts();
     flashSaved('priceSaved');
 }
 
-function removeProduct(index) {
+async function removeProduct(index) {
     const c = getContract();
     c.products.splice(index, 1);
-    saveContract(c);
+    await saveContractToServer(c);
     renderProducts();
 }
 
-function addProduct() {
+async function addProduct() {
     const name = document.getElementById('newProductName').value.trim();
     const rek = parseFloat(document.getElementById('newProductRek').value) || 0;
     if (!name) { alert('Ange produktnamn'); return; }
     const c = getContract();
     c.products.push({ name, rekPrice: rek, margin: c.globalMargin || 30 });
-    saveContract(c);
+    await saveContractToServer(c);
     document.getElementById('newProductName').value = '';
     document.getElementById('newProductRek').value = '';
     renderProducts();
 }
 
-function applyGlobalMargin() {
+async function applyGlobalMargin() {
     const margin = parseFloat(document.getElementById('globalMargin').value) || 0;
     const c = getContract();
     c.globalMargin = margin;
     c.products.forEach(p => p.margin = margin);
-    saveContract(c);
+    await saveContractToServer(c);
     renderProducts();
     flashSaved('priceSaved');
 }
 
-loadInvoice();
-renderProducts();
-
 // --- Invoicing ---
-const INVOICES_KEY = 'claude-salj-invoices';
-let allInvoices = JSON.parse(localStorage.getItem(INVOICES_KEY) || '{}');
-let invoiceType = 'direct';
-let invoiceQty = {};
-
 function setInvoiceType(type) {
     invoiceType = type;
     document.getElementById('typeDirectBtn').classList.toggle('active', type === 'direct');
@@ -680,15 +634,7 @@ function updateInvoiceTotals() {
     document.getElementById('invoiceTotalInc').textContent = (total + vat).toLocaleString('sv-SE') + ' kr';
 }
 
-function getNextInvoiceNr() {
-    let max = 1000;
-    Object.values(allInvoices).forEach(list => {
-        list.forEach(inv => { if (inv.nr > max) max = inv.nr; });
-    });
-    return max + 1;
-}
-
-function buildInvoiceData() {
+async function buildInvoiceData() {
     const c = getContract();
     const inv = c.invoice;
     const items = [];
@@ -702,8 +648,10 @@ function buildInvoiceData() {
     if (items.length === 0) { alert('Lägg till antal på minst en produkt'); return null; }
     const total = items.reduce((s, it) => s + it.sum, 0);
     const vat = Math.round(total * 0.25);
+    const nr = await API.getNextInvoiceNr();
     return {
-        nr: getNextInvoiceNr(),
+        nr,
+        client_id: clientId,
         type: invoiceType,
         date: new Date().toISOString(),
         deliveryDate: invoiceType === 'pending' ? document.getElementById('inv-deliveryDate').value : '',
@@ -727,24 +675,22 @@ function getDueDate(terms) {
     return d.toISOString().split('T')[0];
 }
 
-function createInvoice() {
-    const data = buildInvoiceData();
+async function createInvoice() {
+    const data = await buildInvoiceData();
     if (!data) return;
-    if (!allInvoices[clientId]) allInvoices[clientId] = [];
-    allInvoices[clientId].unshift(data);
-    localStorage.setItem(INVOICES_KEY, JSON.stringify(allInvoices));
+    await API.createInvoice(data);
+    clientInvoices = await API.getInvoices(clientId);
     invoiceQty = {};
     renderInvoiceProducts();
     renderInvoiceHistory();
     alert(`Faktura #${data.nr} skapad!`);
 }
 
-function createAndDownloadInvoice() {
-    const data = buildInvoiceData();
+async function createAndDownloadInvoice() {
+    const data = await buildInvoiceData();
     if (!data) return;
-    if (!allInvoices[clientId]) allInvoices[clientId] = [];
-    allInvoices[clientId].unshift(data);
-    localStorage.setItem(INVOICES_KEY, JSON.stringify(allInvoices));
+    await API.createInvoice(data);
+    clientInvoices = await API.getInvoices(clientId);
     invoiceQty = {};
     renderInvoiceProducts();
     renderInvoiceHistory();
@@ -843,14 +789,13 @@ function downloadInvoicePDF(data) {
 }
 
 function renderInvoiceHistory() {
-    const invoices = allInvoices[clientId] || [];
     const container = document.getElementById('invoiceHistory');
-    if (invoices.length === 0) {
+    if (clientInvoices.length === 0) {
         container.innerHTML = '<div class="no-invoices">Inga fakturor ännu</div>';
         return;
     }
     const today = new Date().toISOString().split('T')[0];
-    container.innerHTML = invoices.map((inv, i) => {
+    container.innerHTML = clientInvoices.map(inv => {
         const dateStr = new Date(inv.date).toLocaleDateString('sv-SE');
         const typeLabel = inv.type === 'pending' ? 'Väntande' : 'Leverans';
         const badgeClass = inv.status === 'paid' ? 'paid' : inv.type === 'pending' ? 'pending' : 'direct';
@@ -867,30 +812,25 @@ function renderInvoiceHistory() {
             <div class="hist-right">
                 <div class="hist-amount">${inv.totalInc.toLocaleString('sv-SE')} kr</div>
                 <div class="hist-actions">
-                    ${inv.status !== 'paid' ? `<button onclick="markPaid(${i})">Markera betald</button>` : ''}
-                    <button onclick="redownloadInvoice(${i})">PDF</button>
+                    ${inv.status !== 'paid' ? `<button onclick="markPaid(${inv.id})">Markera betald</button>` : ''}
+                    <button onclick="redownloadInvoice(${inv.id})">PDF</button>
                 </div>
             </div>
         </div>`;
     }).join('');
 }
 
-function markPaid(index) {
-    const invoices = allInvoices[clientId];
-    if (!invoices || !invoices[index]) return;
-    invoices[index].status = 'paid';
-    localStorage.setItem(INVOICES_KEY, JSON.stringify(allInvoices));
+async function markPaid(invoiceId) {
+    await API.updateInvoice(invoiceId, { status: 'paid' });
+    clientInvoices = await API.getInvoices(clientId);
     renderInvoiceHistory();
 }
 
-function redownloadInvoice(index) {
-    const invoices = allInvoices[clientId];
-    if (!invoices || !invoices[index]) return;
-    downloadInvoicePDF(invoices[index]);
+function redownloadInvoice(invoiceId) {
+    const inv = clientInvoices.find(i => i.id === invoiceId);
+    if (!inv) return;
+    downloadInvoicePDF(inv);
 }
-
-// Init invoice tab products
-renderInvoiceProducts();
 
 function downloadPDF() {
     const c = getContract();
@@ -1016,6 +956,52 @@ function downloadPDF() {
     win.document.close();
     setTimeout(() => { win.print(); }, 400);
 }
+
+async function init() {
+    const clients = await API.getClients();
+    client = clients.find(c => c.id === clientId);
+
+    if (!client) {
+        document.getElementById('storeName').textContent = 'Butik hittades inte';
+    } else {
+        document.title = client.name + ' - Virea AB';
+        document.getElementById('storeName').textContent = client.name;
+        document.getElementById('storeLocation').textContent = `${client.address || ''}, ${client.city}`;
+
+        const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.name + ', ' + (client.address || '') + ', ' + client.city)}`;
+
+        document.getElementById('contactInfo').innerHTML = `
+            <div class="info-row"><span class="info-label">Kontaktperson</span><span class="info-value">${escHtml(client.contactPerson || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Telefon</span><span class="info-value">${escHtml(client.phone || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Email</span><span class="info-value">${client.email ? `<a href="mailto:${escHtml(client.email)}">${escHtml(client.email)}</a>` : '-'}</span></div>
+        `;
+        document.getElementById('clientInfo').innerHTML = `
+            <div class="info-row"><span class="info-label">Kund sedan</span><span class="info-value">${client.startDate || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Omsättning/mån</span><span class="info-value">${(client.revenue || 0).toLocaleString('sv-SE')} kr</span></div>
+            <div class="info-row"><span class="info-label">Kommentar</span><span class="info-value">${escHtml(client.comment || '-')}</span></div>
+        `;
+        document.getElementById('locationInfo').innerHTML = `
+            <div class="info-row"><span class="info-label">Adress</span><span class="info-value">${escHtml(client.address || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Stad</span><span class="info-value">${escHtml(client.city)}</span></div>
+            <div class="info-row"><span class="info-label">Karta</span><span class="info-value"><a href="${mapsLink}" target="_blank" rel="noopener">Öppna i Google Maps</a></span></div>
+        `;
+    }
+
+    clientNotes = await API.getNotes('client', clientId);
+    renderNotes();
+
+    contractData = await API.getContract(clientId);
+    loadInvoice();
+    renderProducts();
+
+    clientInvoices = await API.getInvoices(clientId);
+    renderInvoiceProducts();
+
+    if (initialTab === 'avtal') switchTab('avtal');
+    else if (initialTab === 'faktura') switchTab('faktura');
+}
+
+init();
 </script>
 
 </body>

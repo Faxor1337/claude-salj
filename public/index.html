@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Butiksförsäljning - Virea AB</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        .btn-contact {
+            background: rgba(99,102,241,0.15);
+            color: #818cf8;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .btn-contact:hover { background: rgba(99,102,241,0.25); }
+
+        .btn-edit {
+            background: rgba(255,255,255,0.06);
+            color: #8b8fa4;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .btn-edit:hover { background: rgba(255,255,255,0.1); color: #e0e0e8; }
+
+        .btn-move {
+            background: rgba(34,197,94,0.12);
+            color: #4ade80;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            white-space: nowrap;
+            margin-left: 4px;
+        }
+        .btn-move:hover { background: rgba(34,197,94,0.2); }
+
+        .inline-status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7280'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            padding-right: 24px;
+        }
+        .inline-status:focus { outline: 2px solid #6366f1; outline-offset: 1px; }
+
+        .status-prospekt { background: rgba(234,179,8,0.12); color: #facc15; }
+        .status-kontaktad { background: rgba(99,102,241,0.15); color: #818cf8; }
+        .status-skickat-prov { background: rgba(139,92,246,0.15); color: #a78bfa; }
+        .status-väntar-på-svar { background: rgba(251,146,60,0.15); color: #fb923c; }
+        .status-intresserad { background: rgba(34,197,94,0.12); color: #4ade80; }
+        .status-återkoppla-senare { background: rgba(255,255,255,0.06); color: #6b7280; }
+        .status-nej-tack { background: rgba(239,68,68,0.12); color: #f87171; }
+
+        .store-link {
+            color: #e0e0e8;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .store-link:hover {
+            color: #818cf8;
+            text-decoration: underline;
+        }
+
+        .inline-comment {
+            border: 1px solid transparent;
+            background: transparent;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+            width: 100%;
+            min-width: 140px;
+            color: #c0c4d4;
+        }
+        .inline-comment::placeholder { color: #4b5068; }
+        .inline-comment:hover {
+            border-color: #303348;
+            background: #1e2030;
+        }
+        .inline-comment:focus {
+            border-color: #6366f1;
+            background: #1e2030;
+            outline: none;
+            color: #e0e0e8;
+        }
+
+        .contacted-name {
+            color: #4ade80;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .contacted-name:hover {
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Nav injected by nav.js -->
+
+<div class="stats">
+    <div class="stat-card">
+        <div class="label">Totalt antal kunder</div>
+        <div class="value" id="totalCustomers">0</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Intresserade</div>
+        <div class="value" id="activeCustomers">0</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Total omsättning</div>
+        <div class="value" id="totalRevenue">0 kr</div>
+    </div>
+</div>
+
+<div class="table-container">
+    <div class="table-header">
+        <h2>Prospekt</h2>
+        <div style="display:flex;gap:10px;">
+            <input type="text" class="search-box" placeholder="Sök kund..." oninput="renderTable()" id="search">
+            <button class="add-btn" onclick="openModal()">+ Ny kund</button>
+        </div>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th onclick="sortBy('name')">Butiks namn</th>
+                <th onclick="sortBy('city')">Stad</th>
+                <th onclick="sortBy('address')">Adress</th>
+                <th>Karta</th>
+                <th onclick="sortBy('status')">Status</th>
+                <th onclick="sortBy('comment')">Kommentar</th>
+                <th onclick="sortBy('revenue')">Omsättning</th>
+                <th onclick="sortBy('contactedBy')">Kontaktad av</th>
+                <th onclick="sortBy('phone')">Telefon</th>
+                <th onclick="sortBy('email')">Email</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="modal">
+    <div class="modal">
+        <h3 id="modalTitle">Lägg till kund</h3>
+        <label>Butiks namn</label>
+        <input type="text" id="f-name">
+        <label>Stad</label>
+        <input type="text" id="f-city">
+        <label>Adress</label>
+        <input type="text" id="f-address">
+        <label>Status</label>
+        <select id="f-status">
+            <option value="Prospekt">Prospekt</option>
+            <option value="Kontaktad">Kontaktad</option>
+            <option value="Skickat prov">Skickat prov</option>
+            <option value="Väntar på svar">Väntar på svar</option>
+            <option value="Intresserad">Intresserad</option>
+            <option value="Återkoppla senare">Återkoppla senare</option>
+            <option value="Nej tack">Nej tack</option>
+        </select>
+        <label>Kommentar</label>
+        <textarea id="f-comment"></textarea>
+        <label>Omsättning (kr)</label>
+        <input type="number" id="f-revenue" min="0">
+        <label>Kontaktad av</label>
+        <input type="text" id="f-contactedBy">
+        <label>Telefon</label>
+        <input type="tel" id="f-phone">
+        <label>Email</label>
+        <input type="email" id="f-email">
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">Avbryt</button>
+            <button class="btn-save" onclick="saveCustomer()">Spara</button>
+        </div>
+    </div>
+</div>
+
+<script src="api.js"></script>
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script>
+let currentUser = null;
+let customers = [];
+let sortField = 'name';
+let sortAsc = true;
+let editingId = null;
+
+(async function init() {
+    currentUser = await requireAuth();
+    if (!currentUser) return;
+    renderNav('prospects');
+    customers = await API.getCustomers();
+    renderTable();
+    // Handle auto-edit
+    const urlParams = new URLSearchParams(window.location.search);
+    const autoEdit = urlParams.get('edit');
+    if (autoEdit) { editCustomer(parseInt(autoEdit)); history.replaceState(null, '', 'index.html'); }
+})();
+
+function mapsUrl(name, address, city) {
+    const q = encodeURIComponent(`${name}, ${address}, ${city}`);
+    return `https://www.google.com/maps/search/?api=1&query=${q}`;
+}
+
+function sortBy(field) {
+    if (sortField === field) { sortAsc = !sortAsc; }
+    else { sortField = field; sortAsc = true; }
+    renderTable();
+}
+
+function renderTable() {
+    const query = document.getElementById('search').value.toLowerCase();
+    let filtered = customers.filter(c =>
+        c.name.toLowerCase().includes(query) ||
+        c.city.toLowerCase().includes(query) ||
+        c.status.toLowerCase().includes(query) ||
+        (c.address || '').toLowerCase().includes(query) ||
+        (c.contactedBy || '').toLowerCase().includes(query) ||
+        (c.phone || '').toLowerCase().includes(query) ||
+        (c.email || '').toLowerCase().includes(query)
+    );
+
+    filtered.sort((a, b) => {
+        let va = a[sortField] || '', vb = b[sortField] || '';
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        if (va < vb) return sortAsc ? -1 : 1;
+        if (va > vb) return sortAsc ? 1 : -1;
+        return 0;
+    });
+
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = filtered.map(c => {
+        const link = mapsUrl(c.name, c.address || '', c.city);
+        const emailCell = c.email ? `<a class="email-link" href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '';
+        const contactedCell = c.contactedBy
+            ? `<span class="contacted-name" onclick="event.stopPropagation();unmarkContacted(${c.id})" title="Klicka för att ta bort markering">${esc(c.contactedBy)}</span>`
+            : `<button class="btn-contact" onclick="event.stopPropagation();markContacted(${c.id})">Kontaktad</button>`;
+        const commentVal = esc(c.comment || '');
+        return `
+        <tr>
+            <td><a class="store-link" href="profile.html?id=${c.id}">${esc(c.name)}</a></td>
+            <td>${esc(c.city)}</td>
+            <td>${esc(c.address || '')}</td>
+            <td><a class="map-link" href="${link}" target="_blank" rel="noopener">Visa karta</a></td>
+            <td>
+                <select class="inline-status status-${(c.status || 'prospekt').toLowerCase().replace(/\s+/g,'-')}" onchange="saveStatus(${c.id}, this.value)" onclick="event.stopPropagation()">
+                    <option value="Prospekt" ${c.status==='Prospekt'?'selected':''}>Prospekt</option>
+                    <option value="Kontaktad" ${c.status==='Kontaktad'?'selected':''}>Kontaktad</option>
+                    <option value="Skickat prov" ${c.status==='Skickat prov'?'selected':''}>Skickat prov</option>
+                    <option value="Väntar på svar" ${c.status==='Väntar på svar'?'selected':''}>Väntar på svar</option>
+                    <option value="Intresserad" ${c.status==='Intresserad'?'selected':''}>Intresserad</option>
+                    <option value="Återkoppla senare" ${c.status==='Återkoppla senare'?'selected':''}>Återkoppla senare</option>
+                    <option value="Nej tack" ${c.status==='Nej tack'?'selected':''}>Nej tack</option>
+                </select>
+            </td>
+            <td><input class="inline-comment" type="text" value="${commentVal}" placeholder="Lägg till kommentar..." title="${commentVal}" onchange="saveComment(${c.id}, this.value)" oninput="this.title=this.value" onclick="event.stopPropagation()"></td>
+            <td class="revenue">${(c.revenue || 0).toLocaleString('sv-SE')} kr</td>
+            <td>${contactedCell}</td>
+            <td>${esc(c.phone || '')}</td>
+            <td>${emailCell}</td>
+            <td><button class="btn-edit" onclick="event.stopPropagation();editCustomer(${c.id})">Redigera</button></td>
+        </tr>`;
+    }).join('');
+
+    // Stats
+    document.getElementById('totalCustomers').textContent = customers.length;
+    document.getElementById('activeCustomers').textContent = customers.filter(c => c.status === 'Intresserad').length;
+    document.getElementById('totalRevenue').textContent = customers.reduce((s, c) => s + (c.revenue || 0), 0).toLocaleString('sv-SE') + ' kr';
+}
+
+async function moveToClients(id) {
+    const c = customers.find(x => x.id === id);
+    if (!c) return;
+    if (!confirm(`Flytta "${c.name}" till Våra butiker?`)) return;
+
+    // Add to clients list via API
+    await API.createClient({
+        name: c.name,
+        city: c.city,
+        address: c.address || '',
+        contactPerson: c.contactedBy || '',
+        phone: c.phone || '',
+        email: c.email || '',
+        revenue: 0,
+        startDate: new Date().toISOString().split('T')[0],
+        comment: c.comment || ''
+    });
+
+    // Remove from prospects
+    await API.deleteCustomer(id);
+    customers = await API.getCustomers();
+    renderTable();
+}
+
+async function saveStatus(id, value) {
+    const c = customers.find(x => x.id === id);
+    if (!c) return;
+    c.status = value;
+    await API.updateCustomer(id, c);
+    renderTable();
+}
+
+async function saveComment(id, value) {
+    const c = customers.find(x => x.id === id);
+    if (!c) return;
+    c.comment = value.trim();
+    await API.updateCustomer(id, c);
+}
+
+async function markContacted(id) {
+    const c = customers.find(x => x.id === id);
+    if (!c) return;
+    c.contactedBy = currentUser.name;
+    c.status = 'Kontaktad';
+    await API.updateCustomer(id, c);
+    renderTable();
+}
+
+async function unmarkContacted(id) {
+    if (!confirm('Ta bort kontaktmarkering?')) return;
+    const c = customers.find(x => x.id === id);
+    if (!c) return;
+    c.contactedBy = '';
+    c.status = 'Prospekt';
+    await API.updateCustomer(id, c);
+    renderTable();
+}
+
+function esc(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function openModal() {
+    editingId = null;
+    document.getElementById('modalTitle').textContent = 'Lägg till kund';
+    document.getElementById('f-name').value = '';
+    document.getElementById('f-city').value = '';
+    document.getElementById('f-address').value = '';
+    document.getElementById('f-status').value = 'Aktiv';
+    document.getElementById('f-comment').value = '';
+    document.getElementById('f-revenue').value = '';
+    document.getElementById('f-contactedBy').value = '';
+    document.getElementById('f-phone').value = '';
+    document.getElementById('f-email').value = '';
+    document.getElementById('modal').classList.add('active');
+}
+
+function editCustomer(id) {
+    const c = customers.find(x => x.id === id);
+    if (!c) return;
+    editingId = id;
+    document.getElementById('modalTitle').textContent = 'Redigera kund';
+    document.getElementById('f-name').value = c.name || '';
+    document.getElementById('f-city').value = c.city || '';
+    document.getElementById('f-address').value = c.address || '';
+    document.getElementById('f-status').value = c.status || 'Prospekt';
+    document.getElementById('f-comment').value = c.comment || '';
+    document.getElementById('f-revenue').value = c.revenue || 0;
+    document.getElementById('f-contactedBy').value = c.contactedBy || '';
+    document.getElementById('f-phone').value = c.phone || '';
+    document.getElementById('f-email').value = c.email || '';
+    document.getElementById('modal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('modal').classList.remove('active');
+}
+
+async function saveCustomer() {
+    const name = document.getElementById('f-name').value.trim();
+    const city = document.getElementById('f-city').value.trim();
+    const address = document.getElementById('f-address').value.trim();
+    const status = document.getElementById('f-status').value;
+    const comment = document.getElementById('f-comment').value.trim();
+    const revenue = parseInt(document.getElementById('f-revenue').value) || 0;
+    const contactedBy = document.getElementById('f-contactedBy').value.trim();
+    const phone = document.getElementById('f-phone').value.trim();
+    const email = document.getElementById('f-email').value.trim();
+
+    if (!name) { alert('Ange butiks namn'); return; }
+
+    if (editingId) {
+        const c = customers.find(x => x.id === editingId);
+        Object.assign(c, { name, city, address, status, comment, revenue, contactedBy, phone, email });
+        await API.updateCustomer(editingId, c);
+    } else {
+        await API.createCustomer({ name, city, address, status, comment, revenue, contactedBy, phone, email });
+    }
+
+    customers = await API.getCustomers();
+    closeModal();
+    renderTable();
+}
+
+// Close modal on overlay click
+document.getElementById('modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+});
+</script>
+
+</body>
+</html>

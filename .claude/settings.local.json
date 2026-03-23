@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "WebFetch(domain:www.ica.se)",
+      "WebFetch(domain:www.allabolag.se)",
+      "WebSearch",
+      "WebFetch(domain:ica.jensnylander.com)",
+      "WebFetch(domain:sv.wikipedia.org)",
+      "WebFetch(domain:sverigeskommuner.net)",
+      "Bash(export PATH=\"$PATH:/c/Program Files/GitHub CLI\")",
+      "Bash(gh repo:*)",
+      "Bash(npm install:*)"
+    ]
+  }
+}

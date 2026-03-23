@@ -117,36 +117,30 @@
     </div>
 </div>
 
+<script src="api.js"></script>
 <script src="auth.js"></script>
 <script src="nav.js"></script>
 <script>
-const currentUser = requireAuth();
-renderNav('clients');
-
-const CLIENTS_KEY = 'claude-salj-clients-v1';
-
-let clients = JSON.parse(localStorage.getItem(CLIENTS_KEY) || 'null') || [
-    {
-        id: 1,
-        name: "Hemköp Torpa",
-        city: "Vänersborg",
-        address: "Torpavägen 2",
-        contactPerson: "",
-        phone: "",
-        email: "",
-        revenue: 0,
-        startDate: "2026-03-01",
-        comment: "Första kunden!"
-    },
-];
-
+let clients = [];
+let currentUser = null;
 let sortField = 'name';
 let sortAsc = true;
 let editingId = null;
 
-function save() {
-    localStorage.setItem(CLIENTS_KEY, JSON.stringify(clients));
-}
+(async function init() {
+    currentUser = await requireAuth();
+    renderNav('clients');
+    clients = await API.getClients();
+    renderTable();
+
+    // Auto-open edit modal if ?edit=id is in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const autoEdit = urlParams.get('edit');
+    if (autoEdit) {
+        editClient(parseInt(autoEdit));
+        history.replaceState(null, '', 'clients.html');
+    }
+})();
 
 function sortBy(field) {
     if (sortField === field) sortAsc = !sortAsc;
@@ -209,11 +203,11 @@ function renderTable() {
     }
 }
 
-function saveComment(id, value) {
+async function saveComment(id, value) {
     const c = clients.find(x => x.id === id);
     if (!c) return;
     c.comment = value.trim();
-    save();
+    await API.updateClient(id, c);
 }
 
 function escHtml(str) {
@@ -258,7 +252,7 @@ function closeModal() {
     document.getElementById('modal').classList.remove('active');
 }
 
-function saveClient() {
+async function saveClient() {
     const name = document.getElementById('f-name').value.trim();
     const city = document.getElementById('f-city').value.trim();
     const address = document.getElementById('f-address').value.trim();
@@ -272,14 +266,12 @@ function saveClient() {
     if (!name) { alert('Ange butiks namn'); return; }
 
     if (editingId) {
-        const c = clients.find(x => x.id === editingId);
-        Object.assign(c, { name, city, address, contactPerson, phone, email, revenue, startDate, comment });
+        await API.updateClient(editingId, { name, city, address, contactPerson, phone, email, revenue, startDate, comment });
     } else {
-        const id = clients.length ? Math.max(...clients.map(c => c.id)) + 1 : 1;
-        clients.push({ id, name, city, address, contactPerson, phone, email, revenue, startDate, comment });
+        await API.createClient({ name, city, address, contactPerson, phone, email, revenue, startDate, comment });
     }
 
-    save();
+    clients = await API.getClients();
     closeModal();
     renderTable();
 }
@@ -287,16 +279,6 @@ function saveClient() {
 document.getElementById('modal').addEventListener('click', e => {
     if (e.target === e.currentTarget) closeModal();
 });
-
-renderTable();
-
-// Auto-open edit modal if ?edit=id is in URL
-const urlParams = new URLSearchParams(window.location.search);
-const autoEdit = urlParams.get('edit');
-if (autoEdit) {
-    editClient(parseInt(autoEdit));
-    history.replaceState(null, '', 'clients.html');
-}
 </script>
 
 </body>
