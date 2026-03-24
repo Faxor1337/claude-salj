@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statistik - Virea AB</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 24px 32px;
+        }
+        .analytics-card {
+            background: #161822;
+            border: 1px solid #252836;
+            border-radius: 10px;
+            padding: 24px;
+        }
+        .analytics-card h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+        }
+        .big-number {
+            font-size: 36px;
+            font-weight: 800;
+            color: #e0e0e8;
+            margin-bottom: 4px;
+        }
+        .big-label {
+            font-size: 13px;
+            color: #6b7280;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #252836;
+        }
+        .stat-row:last-child { border-bottom: none; }
+        .stat-name {
+            font-size: 14px;
+            color: #e0e0e8;
+            font-weight: 500;
+        }
+        .stat-value {
+            font-size: 14px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+        .stat-value.green { color: #4ade80; }
+        .stat-value.orange { color: #fb923c; }
+        .stat-value.purple { color: #818cf8; }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #e0e0e8;
+            margin: 32px 32px 0;
+        }
+
+        .table-section {
+            margin: 16px 32px;
+            background: #161822;
+            border: 1px solid #252836;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .table-section table { width: 100%; border-collapse: collapse; }
+        .table-section th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6b7280;
+            background: #1a1c2e;
+            border-bottom: 1px solid #252836;
+        }
+        .table-section th.right { text-align: right; }
+        .table-section th.center { text-align: center; }
+        .table-section td {
+            padding: 12px 16px;
+            font-size: 14px;
+            color: #c4c8d8;
+            border-bottom: 1px solid #252836;
+        }
+        .table-section tr:last-child td { border-bottom: none; }
+
+        .bar-container {
+            width: 100%;
+            height: 8px;
+            background: #252836;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+        .bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+
+<div class="analytics-grid">
+    <div class="analytics-card">
+        <h3>Totalt provpaket ute</h3>
+        <div class="big-number" id="totalRemaining">-</div>
+        <div class="big-label">produkter kvar hos butiker</div>
+    </div>
+    <div class="analytics-card">
+        <h3>Totalt skickade</h3>
+        <div class="big-number" id="totalSent">-</div>
+        <div class="big-label">produkter skickade som prover</div>
+    </div>
+    <div class="analytics-card">
+        <h3>Totalt sålda</h3>
+        <div class="big-number" id="totalSold">-</div>
+        <div class="big-label">produkter fakturerade</div>
+    </div>
+</div>
+
+<div class="section-title">Kontaktade butiker per person</div>
+<div class="table-section">
+    <table>
+        <thead>
+            <tr>
+                <th>Person</th>
+                <th class="right">Prospekt</th>
+                <th class="right">Kunder</th>
+                <th class="right">Totalt</th>
+                <th style="width:200px;"></th>
+            </tr>
+        </thead>
+        <tbody id="contactedTable"></tbody>
+    </table>
+</div>
+
+<div class="section-title">Provpaket per produkt</div>
+<div class="table-section">
+    <table>
+        <thead>
+            <tr>
+                <th>Produkt</th>
+                <th class="right">Skickat</th>
+                <th class="right">Sålt</th>
+                <th class="right">Kvar ute</th>
+                <th style="width:200px;"></th>
+            </tr>
+        </thead>
+        <tbody id="productTable"></tbody>
+    </table>
+</div>
+
+<div class="section-title">Provpaket per butik</div>
+<div class="table-section">
+    <table>
+        <thead>
+            <tr>
+                <th>Butik</th>
+                <th class="right">Skickat</th>
+                <th class="right">Sålt</th>
+                <th class="right">Kvar ute</th>
+                <th style="width:200px;"></th>
+            </tr>
+        </thead>
+        <tbody id="clientTable"></tbody>
+    </table>
+</div>
+
+<script src="api.js"></script>
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script>
+
+function escHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function barHtml(value, max, color) {
+    const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+    return `<div class="bar-container"><div class="bar-fill" style="width:${pct}%;background:${color};"></div></div>`;
+}
+
+async function init() {
+    await requireAuth();
+    renderNav('analytics');
+
+    const data = await API.fetch('/api/analytics').then(r => r.json());
+
+    // Big numbers
+    const totals = data.provpaketTotals;
+    document.getElementById('totalRemaining').textContent = Number(totals.total_remaining || 0);
+    document.getElementById('totalSent').textContent = Number(totals.total_sent || 0);
+    document.getElementById('totalSold').textContent = Number(totals.total_sold || 0);
+
+    // Contacted per person - merge prospects + clients
+    const contactMap = {};
+    (data.contactedProspects || []).forEach(r => {
+        if (!contactMap[r.name]) contactMap[r.name] = { prospects: 0, clients: 0 };
+        contactMap[r.name].prospects = Number(r.count);
+    });
+    (data.contactedClients || []).forEach(r => {
+        if (!contactMap[r.name]) contactMap[r.name] = { prospects: 0, clients: 0 };
+        contactMap[r.name].clients = Number(r.count);
+    });
+    const contactList = Object.entries(contactMap)
+        .map(([name, v]) => ({ name, prospects: v.prospects, clients: v.clients, total: v.prospects + v.clients }))
+        .sort((a, b) => b.total - a.total);
+    const maxContacted = Math.max(...contactList.map(c => c.total), 1);
+
+    document.getElementById('contactedTable').innerHTML = contactList.length === 0
+        ? '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:24px;">Ingen data ännu</td></tr>'
+        : contactList.map(c => `<tr>
+            <td style="font-weight:600;color:#e0e0e8;">${escHtml(c.name)}</td>
+            <td style="text-align:right;">${c.prospects}</td>
+            <td style="text-align:right;">${c.clients}</td>
+            <td style="text-align:right;font-weight:700;color:#818cf8;">${c.total}</td>
+            <td>${barHtml(c.total, maxContacted, '#818cf8')}</td>
+        </tr>`).join('');
+
+    // Provpaket per product
+    const products = data.provpaketPerProduct || [];
+    const maxProduct = Math.max(...products.map(p => Number(p.sent)), 1);
+    document.getElementById('productTable').innerHTML = products.length === 0
+        ? '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:24px;">Ingen data ännu</td></tr>'
+        : products.map(p => {
+            const sent = Number(p.sent);
+            const sold = Number(p.sold);
+            const remaining = Number(p.remaining);
+            return `<tr>
+                <td style="font-weight:600;color:#e0e0e8;">${escHtml(p.product_name)}</td>
+                <td style="text-align:right;">${sent}</td>
+                <td style="text-align:right;color:#4ade80;">${sold}</td>
+                <td style="text-align:right;font-weight:700;color:${remaining > 0 ? '#fb923c' : '#6b7280'};">${remaining}</td>
+                <td>${barHtml(sent, maxProduct, '#6366f1')}</td>
+            </tr>`;
+        }).join('');
+
+    // Provpaket per client
+    const clients = data.provpaketPerClient || [];
+    const maxClient = Math.max(...clients.map(c => Number(c.sent)), 1);
+    document.getElementById('clientTable').innerHTML = clients.length === 0
+        ? '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:24px;">Ingen data ännu</td></tr>'
+        : clients.map(c => {
+            const sent = Number(c.sent);
+            const sold = Number(c.sold);
+            const remaining = Number(c.remaining);
+            return `<tr>
+                <td><a href="client-profile.html?id=${c.client_id}&tab=provpaket" style="color:#818cf8;text-decoration:none;font-weight:600;">${escHtml(c.client_name || 'Okänd')}</a></td>
+                <td style="text-align:right;">${sent}</td>
+                <td style="text-align:right;color:#4ade80;">${sold}</td>
+                <td style="text-align:right;font-weight:700;color:${remaining > 0 ? '#fb923c' : '#6b7280'};">${remaining}</td>
+                <td>${barHtml(sent, maxClient, '#6366f1')}</td>
+            </tr>`;
+        }).join('');
+}
+
+init();
+</script>
+
+</body>
+</html>

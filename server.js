@@ -392,6 +392,59 @@ app.delete('/api/provpaket/:id', requireAdmin, async (req, res) => {
     res.json({ ok: true });
 });
 
+// ===== ANALYTICS =====
+app.get('/api/analytics', requireAuth, async (req, res) => {
+    // Contacted stores per user
+    const contacted = await pool.query(`
+        SELECT contacted_by as name, COUNT(*) as count
+        FROM customers WHERE contacted_by IS NOT NULL AND contacted_by != ''
+        GROUP BY contacted_by ORDER BY count DESC
+    `);
+
+    // Provpaket totals across all clients
+    const provpaket = await pool.query(`
+        SELECT
+            SUM(CASE WHEN type='in' THEN quantity ELSE 0 END) as total_sent,
+            SUM(CASE WHEN type='out' THEN quantity ELSE 0 END) as total_sold,
+            SUM(CASE WHEN type='in' THEN quantity ELSE -quantity END) as total_remaining
+        FROM provpaket
+    `);
+
+    // Provpaket per product
+    const provPerProduct = await pool.query(`
+        SELECT product_name,
+            SUM(CASE WHEN type='in' THEN quantity ELSE 0 END) as sent,
+            SUM(CASE WHEN type='out' THEN quantity ELSE 0 END) as sold,
+            SUM(CASE WHEN type='in' THEN quantity ELSE -quantity END) as remaining
+        FROM provpaket GROUP BY product_name ORDER BY product_name
+    `);
+
+    // Provpaket per client
+    const provPerClient = await pool.query(`
+        SELECT p.client_id, c.name as client_name,
+            SUM(CASE WHEN p.type='in' THEN p.quantity ELSE 0 END) as sent,
+            SUM(CASE WHEN p.type='out' THEN p.quantity ELSE 0 END) as sold,
+            SUM(CASE WHEN p.type='in' THEN p.quantity ELSE -p.quantity END) as remaining
+        FROM provpaket p LEFT JOIN clients c ON p.client_id = c.id
+        GROUP BY p.client_id, c.name ORDER BY remaining DESC
+    `);
+
+    // Contacted per user from clients table too
+    const contactedClients = await pool.query(`
+        SELECT contacted_by as name, COUNT(*) as count
+        FROM clients WHERE contacted_by IS NOT NULL AND contacted_by != ''
+        GROUP BY contacted_by ORDER BY count DESC
+    `);
+
+    res.json({
+        contactedProspects: contacted.rows,
+        contactedClients: contactedClients.rows,
+        provpaketTotals: provpaket.rows[0] || { total_sent: 0, total_sold: 0, total_remaining: 0 },
+        provpaketPerProduct: provPerProduct.rows,
+        provpaketPerClient: provPerClient.rows
+    });
+});
+
 // ===== SEED CUSTOMERS =====
 app.post('/api/seed-customers', requireAdmin, async (req, res) => {
     const { customers } = req.body;

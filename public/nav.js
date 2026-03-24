@@ -9,6 +9,8 @@ function renderNav(activePage) {
         { id: 'invoices', label: 'Alla fakturor', href: 'invoices.html' },
     ];
 
+    pages.push({ id: 'analytics', label: 'Statistik', href: 'analytics.html' });
+
     if (user.role === 'admin') {
         pages.push({ id: 'admin', label: 'Admin', href: 'admin.html' });
     }
