@@ -263,11 +263,11 @@ app.get('/api/invoices', requireAuth, async (req, res) => {
 });
 
 app.post('/api/invoices', requireAuth, async (req, res) => {
-    const { nr, client_id, client_name, type, delivery_date, followup_date, due_date, items, total, vat, total_inc, invoice_info, created_by } = req.body;
+    const { nr, client_id, client_name, type, delivery_date, followup_date, due_date, items, total, vat, total_inc, invoice_info, status, created_by } = req.body;
     const { rows } = await pool.query(
         `INSERT INTO invoices (nr,client_id,client_name,type,delivery_date,followup_date,due_date,items,total,vat,total_inc,invoice_info,status,created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'unpaid',$13) RETURNING *`,
-        [nr, client_id, client_name, type, delivery_date || '', followup_date || '', due_date, JSON.stringify(items), total, vat, total_inc, JSON.stringify(invoice_info), created_by]
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+        [nr, client_id, client_name, type, delivery_date || '', followup_date || '', due_date, JSON.stringify(items), total, vat, total_inc, JSON.stringify(invoice_info), status || 'unpaid', created_by]
     );
     res.json(rows[0]);
 });

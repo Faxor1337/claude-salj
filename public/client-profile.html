@@ -682,19 +682,19 @@ async function buildInvoiceData() {
     return {
         nr,
         client_id: clientId,
+        client_name: client.name,
         type: invoiceType,
         date: new Date().toISOString(),
-        deliveryDate: invoiceType === 'pending' ? document.getElementById('inv-deliveryDate').value : '',
-        followupDate: invoiceType === 'pending' ? document.getElementById('inv-followupDate').value : '',
-        dueDate: getDueDate(inv.terms),
+        delivery_date: invoiceType === 'pending' ? document.getElementById('inv-deliveryDate').value : '',
+        followup_date: invoiceType === 'pending' ? document.getElementById('inv-followupDate').value : '',
+        due_date: getDueDate(inv.terms),
         items,
         total,
         vat,
-        totalInc: total + vat,
-        invoice: inv,
-        clientName: client.name,
-        createdBy: currentUser.name,
-        status: 'unpaid'
+        total_inc: total + vat,
+        invoice_info: inv,
+        created_by: getCurrentUser().name,
+        status: invoiceType === 'pending' ? 'provpaket' : 'unpaid'
     };
 }
 
@@ -728,7 +728,7 @@ async function createAndDownloadInvoice() {
 }
 
 function downloadInvoicePDF(data) {
-    const inv = data.invoice;
+    const inv = data.invoice_info;
     const itemRows = data.items.map(it => `<tr>
         <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;">${escHtml(it.name)}</td>
         <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;text-align:right;">${it.price.toLocaleString('sv-SE')} kr</td>
@@ -738,7 +738,7 @@ function downloadInvoicePDF(data) {
 
     const dateStr = new Date(data.date).toLocaleDateString('sv-SE');
     const typeLabel = data.type === 'pending' ? 'Väntande faktura' : 'Faktura';
-    const deliveryNote = data.deliveryDate ? `<br>Leveransdatum: ${data.deliveryDate}` : '';
+    const deliveryNote = data.delivery_date ? `<br>Leveransdatum: ${data.delivery_date}` : '';
 
     const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>Faktura #${data.nr}</title>
@@ -770,7 +770,7 @@ function downloadInvoicePDF(data) {
     <div class="doc-info">
         <strong>${typeLabel} #${data.nr}${data.type === 'pending' ? ' <span class="pending-badge">Väntande</span>' : ''}</strong>
         Fakturadatum: ${dateStr}${deliveryNote}<br>
-        Förfallodatum: ${data.dueDate}<br>
+        Förfallodatum: ${data.due_date}<br>
         Ref: ${escHtml(inv.reference || '-')}
     </div>
 </div>
@@ -799,7 +799,7 @@ function downloadInvoicePDF(data) {
 <div class="totals">
     <div class="row"><span>Summa exkl. moms</span><span>${data.total.toLocaleString('sv-SE')} kr</span></div>
     <div class="row"><span>Moms 25%</span><span>${data.vat.toLocaleString('sv-SE')} kr</span></div>
-    <div class="row grand"><span>Att betala</span><span>${data.totalInc.toLocaleString('sv-SE')} kr</span></div>
+    <div class="row grand"><span>Att betala</span><span>${data.total_inc.toLocaleString('sv-SE')} kr</span></div>
 </div>
 
 <div class="terms">

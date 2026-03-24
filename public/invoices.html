@@ -149,7 +149,17 @@ function renderTable() {
     const today = new Date().toISOString().split('T')[0];
     let invoices = allInvoicesList.map(inv => {
         const client = clients.find(c => c.id === inv.client_id);
-        return { ...inv, clientId: inv.client_id, clientName: inv.clientName || (client ? client.name : 'Okänd') };
+        return {
+            ...inv,
+            clientId: inv.client_id,
+            clientName: inv.client_name || (client ? client.name : 'Okänd'),
+            dueDate: inv.due_date || '',
+            followupDate: inv.followup_date || '',
+            deliveryDate: inv.delivery_date || '',
+            totalInc: Number(inv.total_inc || 0),
+            total: Number(inv.total || 0),
+            vat: Number(inv.vat || 0)
+        };
     });
 
     // Filter
@@ -182,8 +192,8 @@ function renderTable() {
         const isOverdue = inv.status !== 'paid' && inv.dueDate < today;
         const followupOverdue = inv.followupDate && inv.followupDate <= today && inv.status !== 'paid';
         const typeLabel = inv.type === 'pending' ? 'Väntande' : 'Leverans';
-        const statusLabel = inv.status === 'paid' ? 'Betald' : isOverdue ? 'Förfallen' : 'Obetald';
-        const badgeClass = inv.status === 'paid' ? 'paid' : isOverdue ? 'overdue' : inv.type === 'pending' ? 'pending' : 'direct';
+        const statusLabel = inv.status === 'paid' ? 'Betald' : inv.status === 'provpaket' ? 'Provpaket' : isOverdue ? 'Förfallen' : 'Obetald';
+        const badgeClass = inv.status === 'paid' ? 'paid' : inv.status === 'provpaket' ? 'pending' : isOverdue ? 'overdue' : inv.type === 'pending' ? 'pending' : 'direct';
 
         return `<tr>
             <td style="font-weight:600;color:#e0e0e8;">#${inv.nr}</td>
