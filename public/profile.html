@@ -153,9 +153,6 @@
 <script src="auth.js"></script>
 <script src="nav.js"></script>
 <script>
-const currentUser = requireAuth();
-renderNav('prospects');
-
 const params = new URLSearchParams(window.location.search);
 const storeId = parseInt(params.get('id'));
 
@@ -232,6 +229,9 @@ function renderNotes() {
 }
 
 async function init() {
+    await requireAuth();
+    renderNav('prospects');
+
     const customers = await API.getCustomers();
     store = customers.find(c => c.id === storeId);
 

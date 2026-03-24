@@ -118,9 +118,6 @@
 <script src="auth.js"></script>
 <script src="nav.js"></script>
 <script>
-const currentUser = requireAuth();
-renderNav('invoices');
-
 let allInvoicesList = [];
 let clients = [];
 
@@ -289,6 +286,9 @@ function renderNotifications() {
 }
 
 async function init() {
+    await requireAuth();
+    renderNav('invoices');
+
     allInvoicesList = await API.getInvoices();
     clients = await API.getClients();
     renderTable();

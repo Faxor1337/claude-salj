@@ -426,9 +426,6 @@
 <script src="auth.js"></script>
 <script src="nav.js"></script>
 <script>
-const currentUser = requireAuth();
-renderNav('clients');
-
 const params = new URLSearchParams(window.location.search);
 const clientId = parseInt(params.get('id'));
 const initialTab = params.get('tab');
@@ -992,6 +989,9 @@ function downloadPDF() {
 }
 
 async function init() {
+    await requireAuth();
+    renderNav('clients');
+
     const clients = await API.getClients();
     client = clients.find(c => c.id === clientId);
 
