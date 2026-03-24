@@ -539,8 +539,11 @@ function showToast(message, type = 'success') {
     const el = document.getElementById('toast');
     el.textContent = message;
     el.className = 'toast ' + type;
-    requestAnimationFrame(() => el.classList.add('show'));
-    setTimeout(() => el.classList.remove('show'), 3000);
+    // Force reflow then animate
+    el.offsetHeight;
+    el.classList.add('show');
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => el.classList.remove('show'), 3000);
 }
 
 async function saveContractToServer(contract) {
@@ -797,26 +800,36 @@ function getDueDate(terms) {
 }
 
 async function createInvoice() {
-    const data = await buildInvoiceData();
-    if (!data) return;
-    await API.createInvoice(data);
-    clientInvoices = await API.getInvoices(clientId);
-    invoiceQty = {};
-    renderInvoiceProducts();
-    renderInvoiceHistory();
-    showToast(`Faktura #${data.nr} skapad!`);
+    try {
+        const data = await buildInvoiceData();
+        if (!data) return;
+        await API.createInvoice(data);
+        clientInvoices = await API.getInvoices(clientId);
+        invoiceQty = {};
+        renderInvoiceProducts();
+        renderInvoiceHistory();
+        showToast(`Faktura #${data.nr} skapad!`);
+    } catch (err) {
+        console.error('createInvoice error:', err);
+        showToast('Kunde inte skapa faktura: ' + err.message, 'error');
+    }
 }
 
 async function createAndDownloadInvoice() {
-    const data = await buildInvoiceData();
-    if (!data) return;
-    await API.createInvoice(data);
-    clientInvoices = await API.getInvoices(clientId);
-    invoiceQty = {};
-    renderInvoiceProducts();
-    renderInvoiceHistory();
-    showToast(`Faktura #${data.nr} skapad!`);
-    downloadInvoicePDF(data);
+    try {
+        const data = await buildInvoiceData();
+        if (!data) return;
+        await API.createInvoice(data);
+        clientInvoices = await API.getInvoices(clientId);
+        invoiceQty = {};
+        renderInvoiceProducts();
+        renderInvoiceHistory();
+        showToast(`Faktura #${data.nr} skapad!`);
+        downloadInvoicePDF(data);
+    } catch (err) {
+        console.error('createAndDownloadInvoice error:', err);
+        showToast('Kunde inte skapa faktura: ' + err.message, 'error');
+    }
 }
 
 function downloadInvoicePDF(data) {
