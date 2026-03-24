@@ -66,7 +66,7 @@ const API = {
     async addNote(data) { const r = await this.fetch('/api/notes', { method: 'POST', body: JSON.stringify(data) }); return r ? r.json() : null; },
 
     // Products (global catalog)
-    async getProducts() { const r = await this.fetch('/api/products'); return r ? r.json() : []; },
+    async getProducts() { const r = await this.fetch('/api/products'); return (r && r.ok) ? r.json() : []; },
     async createProduct(data) { const r = await this.fetch('/api/products', { method: 'POST', body: JSON.stringify(data) }); return r ? r.json() : null; },
     async updateProduct(id, data) { await this.fetch(`/api/products/${id}`, { method: 'PUT', body: JSON.stringify(data) }); },
     async deleteProduct(id) { await this.fetch(`/api/products/${id}`, { method: 'DELETE' }); },

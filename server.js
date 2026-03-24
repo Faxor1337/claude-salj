@@ -300,8 +300,13 @@ app.post('/api/notes', requireAuth, async (req, res) => {
 
 // ===== PRODUCTS (global catalog) =====
 app.get('/api/products', requireAuth, async (req, res) => {
-    const { rows } = await pool.query('SELECT * FROM products ORDER BY sort_order, id');
-    res.json(rows);
+    try {
+        const { rows } = await pool.query('SELECT * FROM products ORDER BY sort_order, id');
+        res.json(rows);
+    } catch (err) {
+        console.error('GET /api/products error:', err.message);
+        res.json([]);
+    }
 });
 
 app.post('/api/products', requireAdmin, async (req, res) => {

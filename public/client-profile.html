@@ -989,52 +989,63 @@ function downloadPDF() {
 }
 
 async function init() {
-    await requireAuth();
-    renderNav('clients');
+    try {
+        await requireAuth();
+        renderNav('clients');
 
-    const clients = await API.getClients();
-    client = clients.find(c => c.id === clientId);
+        // Load data in parallel
+        const [clients, products, notes, contract, invoices] = await Promise.all([
+            API.getClients(),
+            API.getProducts(),
+            API.getNotes('client', clientId),
+            API.getContract(clientId),
+            API.getInvoices(clientId)
+        ]);
 
-    if (!client) {
-        document.getElementById('storeName').textContent = 'Butik hittades inte';
-    } else {
-        document.title = client.name + ' - Virea AB';
-        document.getElementById('storeName').textContent = client.name;
-        document.getElementById('storeLocation').textContent = `${client.address || ''}, ${client.city}`;
+        globalProducts = products;
+        clientNotes = notes;
+        contractData = contract;
+        clientInvoices = invoices;
 
-        const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.name + ', ' + (client.address || '') + ', ' + client.city)}`;
+        client = clients.find(c => c.id === clientId);
 
-        document.getElementById('contactInfo').innerHTML = `
-            <div class="info-row"><span class="info-label">Kontaktperson</span><span class="info-value">${escHtml(client.contact_person || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Telefon</span><span class="info-value">${escHtml(client.phone || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Email</span><span class="info-value">${client.email ? `<a href="mailto:${escHtml(client.email)}">${escHtml(client.email)}</a>` : '-'}</span></div>
-        `;
-        document.getElementById('clientInfo').innerHTML = `
-            <div class="info-row"><span class="info-label">Kund sedan</span><span class="info-value">${client.start_date || '-'}</span></div>
-            <div class="info-row"><span class="info-label">Omsättning/mån</span><span class="info-value">${formatMkr(client.revenue)}</span></div>
-            <div class="info-row"><span class="info-label">Kommentar</span><span class="info-value">${escHtml(client.comment || '-')}</span></div>
-        `;
-        document.getElementById('locationInfo').innerHTML = `
-            <div class="info-row"><span class="info-label">Adress</span><span class="info-value">${escHtml(client.address || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Stad</span><span class="info-value">${escHtml(client.city)}</span></div>
-            <div class="info-row"><span class="info-label">Karta</span><span class="info-value"><a href="${mapsLink}" target="_blank" rel="noopener">Öppna i Google Maps</a></span></div>
-        `;
+        if (!client) {
+            document.getElementById('storeName').textContent = 'Butik hittades inte';
+        } else {
+            document.title = client.name + ' - Virea AB';
+            document.getElementById('storeName').textContent = client.name;
+            document.getElementById('storeLocation').textContent = `${client.address || ''}, ${client.city}`;
+
+            const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.name + ', ' + (client.address || '') + ', ' + client.city)}`;
+
+            document.getElementById('contactInfo').innerHTML = `
+                <div class="info-row"><span class="info-label">Kontaktperson</span><span class="info-value">${escHtml(client.contact_person || '-')}</span></div>
+                <div class="info-row"><span class="info-label">Telefon</span><span class="info-value">${escHtml(client.phone || '-')}</span></div>
+                <div class="info-row"><span class="info-label">Email</span><span class="info-value">${client.email ? `<a href="mailto:${escHtml(client.email)}">${escHtml(client.email)}</a>` : '-'}</span></div>
+            `;
+            document.getElementById('clientInfo').innerHTML = `
+                <div class="info-row"><span class="info-label">Kund sedan</span><span class="info-value">${client.start_date || '-'}</span></div>
+                <div class="info-row"><span class="info-label">Omsättning/mån</span><span class="info-value">${formatMkr(client.revenue)}</span></div>
+                <div class="info-row"><span class="info-label">Kommentar</span><span class="info-value">${escHtml(client.comment || '-')}</span></div>
+            `;
+            document.getElementById('locationInfo').innerHTML = `
+                <div class="info-row"><span class="info-label">Adress</span><span class="info-value">${escHtml(client.address || '-')}</span></div>
+                <div class="info-row"><span class="info-label">Stad</span><span class="info-value">${escHtml(client.city)}</span></div>
+                <div class="info-row"><span class="info-label">Karta</span><span class="info-value"><a href="${mapsLink}" target="_blank" rel="noopener">Öppna i Google Maps</a></span></div>
+            `;
+        }
+
+        renderNotes();
+        loadInvoice();
+        renderProducts();
+        renderProductSelect();
+        renderInvoiceProducts();
+
+        if (initialTab === 'avtal') switchTab('avtal');
+        else if (initialTab === 'faktura') switchTab('faktura');
+    } catch (err) {
+        console.error('init error:', err);
     }
-
-    clientNotes = await API.getNotes('client', clientId);
-    renderNotes();
-
-    globalProducts = await API.getProducts();
-    contractData = await API.getContract(clientId);
-    loadInvoice();
-    renderProducts();
-    renderProductSelect();
-
-    clientInvoices = await API.getInvoices(clientId);
-    renderInvoiceProducts();
-
-    if (initialTab === 'avtal') switchTab('avtal');
-    else if (initialTab === 'faktura') switchTab('faktura');
 }
 
 init();
