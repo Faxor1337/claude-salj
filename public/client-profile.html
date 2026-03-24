@@ -491,16 +491,22 @@ function renderNotes() {
 
 // --- Contract / Invoice ---
 function getContract() {
-    return contractData || {
-        invoice: { company: '', orgnr: '', address: '', postal: '', reference: '', terms: '30 dagar netto', email: '' },
-        products: [],
-        globalMargin: 30
+    const defaults = { invoice: { company: '', orgnr: '', address: '', postal: '', reference: '', terms: '30 dagar netto', email: '' }, products: [], globalMargin: 30 };
+    if (!contractData) return defaults;
+    return {
+        invoice: contractData.invoice || contractData.invoice_info || defaults.invoice,
+        products: contractData.products || defaults.products,
+        globalMargin: contractData.globalMargin ?? contractData.global_margin ?? defaults.globalMargin
     };
 }
 
 async function saveContractToServer(contract) {
     contractData = contract;
-    await API.saveContract(clientId, contract);
+    await API.saveContract(clientId, {
+        invoice_info: contract.invoice,
+        products: contract.products,
+        global_margin: contract.globalMargin
+    });
 }
 
 function flashSaved(id) {
