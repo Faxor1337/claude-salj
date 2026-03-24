@@ -118,6 +118,8 @@ async function initDb() {
             date TIMESTAMPTZ DEFAULT NOW()
         );
     `);
+    // Cleanup orphaned provpaket deductions from deleted invoices
+    await pool.query(`DELETE FROM provpaket WHERE type='out' AND invoice_id IS NOT NULL AND invoice_id NOT IN (SELECT id FROM invoices)`);
 
     // Seed admin user if no users
     const { rows } = await pool.query('SELECT COUNT(*) FROM users');
@@ -299,6 +301,7 @@ app.put('/api/invoices/:id', requireAuth, async (req, res) => {
 });
 
 app.delete('/api/invoices/:id', requireAdmin, async (req, res) => {
+    await pool.query('DELETE FROM provpaket WHERE invoice_id=$1', [req.params.id]);
     await pool.query('DELETE FROM invoices WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
 });
