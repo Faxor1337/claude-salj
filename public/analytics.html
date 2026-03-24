@@ -135,9 +135,7 @@
         <thead>
             <tr>
                 <th>Person</th>
-                <th class="right">Prospekt</th>
-                <th class="right">Kunder</th>
-                <th class="right">Totalt</th>
+                <th class="right">Kontaktade</th>
                 <th style="width:200px;"></th>
             </tr>
         </thead>
@@ -205,27 +203,16 @@ async function init() {
     document.getElementById('totalSent').textContent = Number(totals.total_sent || 0);
     document.getElementById('totalSold').textContent = Number(totals.total_sold || 0);
 
-    // Contacted per person - merge prospects + clients
-    const contactMap = {};
-    (data.contactedProspects || []).forEach(r => {
-        if (!contactMap[r.name]) contactMap[r.name] = { prospects: 0, clients: 0 };
-        contactMap[r.name].prospects = Number(r.count);
-    });
-    (data.contactedClients || []).forEach(r => {
-        if (!contactMap[r.name]) contactMap[r.name] = { prospects: 0, clients: 0 };
-        contactMap[r.name].clients = Number(r.count);
-    });
-    const contactList = Object.entries(contactMap)
-        .map(([name, v]) => ({ name, prospects: v.prospects, clients: v.clients, total: v.prospects + v.clients }))
+    // Contacted per person
+    const contactList = (data.contactedProspects || [])
+        .map(r => ({ name: r.name, total: Number(r.count) }))
         .sort((a, b) => b.total - a.total);
     const maxContacted = Math.max(...contactList.map(c => c.total), 1);
 
     document.getElementById('contactedTable').innerHTML = contactList.length === 0
-        ? '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:24px;">Ingen data ännu</td></tr>'
+        ? '<tr><td colspan="3" style="text-align:center;color:#6b7280;padding:24px;">Ingen data ännu</td></tr>'
         : contactList.map(c => `<tr>
             <td style="font-weight:600;color:#e0e0e8;">${escHtml(c.name)}</td>
-            <td style="text-align:right;">${c.prospects}</td>
-            <td style="text-align:right;">${c.clients}</td>
             <td style="text-align:right;font-weight:700;color:#818cf8;">${c.total}</td>
             <td>${barHtml(c.total, maxContacted, '#818cf8')}</td>
         </tr>`).join('');
