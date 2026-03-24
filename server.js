@@ -67,7 +67,8 @@ async function initDb() {
             email TEXT DEFAULT '',
             revenue BIGINT DEFAULT 0,
             start_date TEXT DEFAULT '',
-            comment TEXT DEFAULT ''
+            comment TEXT DEFAULT '',
+            assigned_to TEXT DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS contracts (
             client_id INTEGER PRIMARY KEY REFERENCES clients(id) ON DELETE CASCADE,
@@ -118,6 +119,8 @@ async function initDb() {
             date TIMESTAMPTZ DEFAULT NOW()
         );
     `);
+    // Add assigned_to column if missing
+    await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS assigned_to TEXT DEFAULT ''`).catch(() => {});
     // Cleanup orphaned provpaket deductions from deleted invoices
     await pool.query(`DELETE FROM provpaket WHERE type='out' AND invoice_id IS NOT NULL AND invoice_id NOT IN (SELECT id FROM invoices)`);
 
@@ -162,6 +165,11 @@ app.get('/api/me', (req, res) => {
 app.get('/api/users', requireAdmin, async (req, res) => {
     const { rows } = await pool.query('SELECT id, username, name, role FROM users ORDER BY id');
     res.json(rows);
+});
+
+app.get('/api/users/names', requireAuth, async (req, res) => {
+    const { rows } = await pool.query('SELECT name FROM users ORDER BY name');
+    res.json(rows.map(r => r.name));
 });
 
 app.post('/api/users', requireAdmin, async (req, res) => {
@@ -224,19 +232,19 @@ app.get('/api/clients', requireAuth, async (req, res) => {
 });
 
 app.post('/api/clients', requireAuth, async (req, res) => {
-    const { name, city, address, contact_person, phone, email, revenue, start_date, comment } = req.body;
+    const { name, city, address, contact_person, phone, email, revenue, start_date, comment, assigned_to } = req.body;
     const { rows } = await pool.query(
-        'INSERT INTO clients (name,city,address,contact_person,phone,email,revenue,start_date,comment) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',
-        [name, city, address, contact_person || '', phone || '', email || '', revenue || 0, start_date || '', comment || '']
+        'INSERT INTO clients (name,city,address,contact_person,phone,email,revenue,start_date,comment,assigned_to) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
+        [name, city, address, contact_person || '', phone || '', email || '', revenue || 0, start_date || '', comment || '', assigned_to || '']
     );
     res.json(rows[0]);
 });
 
 app.put('/api/clients/:id', requireAuth, async (req, res) => {
-    const { name, city, address, contact_person, phone, email, revenue, start_date, comment } = req.body;
+    const { name, city, address, contact_person, phone, email, revenue, start_date, comment, assigned_to } = req.body;
     await pool.query(
-        'UPDATE clients SET name=$1,city=$2,address=$3,contact_person=$4,phone=$5,email=$6,revenue=$7,start_date=$8,comment=$9 WHERE id=$10',
-        [name, city, address, contact_person, phone, email, revenue, start_date, comment, req.params.id]
+        'UPDATE clients SET name=$1,city=$2,address=$3,contact_person=$4,phone=$5,email=$6,revenue=$7,start_date=$8,comment=$9,assigned_to=$10 WHERE id=$11',
+        [name, city, address, contact_person, phone, email, revenue, start_date, comment, assigned_to || '', req.params.id]
     );
     res.json({ ok: true });
 });

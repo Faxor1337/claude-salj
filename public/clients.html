@@ -80,6 +80,7 @@
                 <th onclick="sortBy('email')">Email</th>
                 <th onclick="sortBy('revenue')">Omsättning/mån</th>
                 <th onclick="sortBy('start_date')">Kund sedan</th>
+                <th onclick="sortBy('assigned_to')">Ansvarig</th>
                 <th onclick="sortBy('comment')">Kommentar</th>
                 <th></th>
             </tr>
@@ -108,6 +109,8 @@
         <input type="number" id="f-revenue" min="0">
         <label>Kund sedan</label>
         <input type="date" id="f-startDate">
+        <label>Ansvarig</label>
+        <select id="f-assigned"></select>
         <label>Kommentar</label>
         <textarea id="f-comment"></textarea>
         <div class="modal-actions">
@@ -123,6 +126,7 @@
 <script>
 let clients = [];
 let currentUser = null;
+let userNames = [];
 let sortField = 'name';
 let sortAsc = true;
 let editingId = null;
@@ -130,7 +134,10 @@ let editingId = null;
 (async function init() {
     currentUser = await requireAuth();
     renderNav('clients');
-    clients = await API.getClients();
+    [clients, userNames] = await Promise.all([
+        API.getClients(),
+        API.fetch('/api/users/names').then(r => r.json()).catch(() => [])
+    ]);
     renderTable();
 
     // Auto-open edit modal if ?edit=id is in URL
@@ -193,6 +200,10 @@ function renderTable() {
             <td>${emailCell}</td>
             <td class="revenue">${formatMkr(c.revenue)}</td>
             <td>${c.start_date || ''}</td>
+            <td><select class="inline-comment" onchange="saveAssigned(${c.id}, this.value)" onclick="event.stopPropagation()" style="width:120px;">
+                <option value="">-</option>
+                ${userNames.map(u => `<option value="${escHtml(u)}" ${c.assigned_to === u ? 'selected' : ''}>${escHtml(u)}</option>`).join('')}
+            </select></td>
             <td><input class="inline-comment" type="text" value="${commentVal}" placeholder="Lägg till kommentar..." title="${commentVal}" onchange="saveComment(${c.id}, this.value)" oninput="this.title=this.value" onclick="event.stopPropagation()"></td>
             <td><button class="btn-edit" onclick="event.stopPropagation();editClient(${c.id})">Redigera</button></td>
         </tr>`;
@@ -211,6 +222,13 @@ async function saveComment(id, value) {
     const c = clients.find(x => x.id === id);
     if (!c) return;
     c.comment = value.trim();
+    await API.updateClient(id, c);
+}
+
+async function saveAssigned(id, value) {
+    const c = clients.find(x => x.id === id);
+    if (!c) return;
+    c.assigned_to = value;
     await API.updateClient(id, c);
 }
 
@@ -240,6 +258,7 @@ function openModal() {
     document.getElementById('f-revenue').value = '';
     document.getElementById('f-startDate').value = new Date().toISOString().split('T')[0];
     document.getElementById('f-comment').value = '';
+    populateAssignedSelect('');
     document.getElementById('modal').classList.add('active');
 }
 
@@ -257,7 +276,14 @@ function editClient(id) {
     document.getElementById('f-revenue').value = c.revenue || '';
     document.getElementById('f-startDate').value = c.start_date || '';
     document.getElementById('f-comment').value = c.comment || '';
+    populateAssignedSelect(c.assigned_to || '');
     document.getElementById('modal').classList.add('active');
+}
+
+function populateAssignedSelect(selected) {
+    const sel = document.getElementById('f-assigned');
+    sel.innerHTML = '<option value="">-</option>' +
+        userNames.map(u => `<option value="${escHtml(u)}" ${selected === u ? 'selected' : ''}>${escHtml(u)}</option>`).join('');
 }
 
 function closeModal() {
@@ -273,14 +299,15 @@ async function saveClient() {
     const email = document.getElementById('f-email').value.trim();
     const revenue = parseInt(document.getElementById('f-revenue').value) || 0;
     const start_date = document.getElementById('f-startDate').value;
+    const assigned_to = document.getElementById('f-assigned').value;
     const comment = document.getElementById('f-comment').value.trim();
 
     if (!name) { alert('Ange butiks namn'); return; }
 
     if (editingId) {
-        await API.updateClient(editingId, { name, city, address, contact_person, phone, email, revenue, start_date, comment });
+        await API.updateClient(editingId, { name, city, address, contact_person, phone, email, revenue, start_date, assigned_to, comment });
     } else {
-        await API.createClient({ name, city, address, contact_person, phone, email, revenue, start_date, comment });
+        await API.createClient({ name, city, address, contact_person, phone, email, revenue, start_date, assigned_to, comment });
     }
 
     clients = await API.getClients();
