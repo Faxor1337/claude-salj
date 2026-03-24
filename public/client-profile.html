@@ -345,18 +345,10 @@
                     <th>Rek. pris (kr)</th>
                     <th>Butikens marginal %</th>
                     <th>Butikens inköpspris (kr)</th>
-                    <th></th>
                 </tr>
             </thead>
             <tbody id="productBody"></tbody>
         </table>
-
-        <div class="add-product-row">
-            <select id="newProductSelect" style="flex:1;padding:9px 12px;border:1px solid #303348;border-radius:8px;font-size:14px;background:#1e2030;color:#e0e0e8;font-family:inherit;">
-                <option value="">Välj produkt från katalogen...</option>
-            </select>
-            <button onclick="addProduct()">+ Lägg till produkt</button>
-        </div>
 
         <div style="margin-top:28px;padding-top:24px;border-top:1px solid #252836;">
             <button class="add-btn" onclick="downloadPDF()" style="background:rgba(34,197,94,0.15);color:#4ade80;">Ladda ner avtal som PDF</button>
@@ -606,11 +598,21 @@ function calcPrice(rekPrice, margin) {
 
 function renderProducts() {
     const c = getContract();
+    // Sync contract products with global catalog - show all catalog products
+    let changed = false;
+    globalProducts.forEach(gp => {
+        if (!c.products.find(p => p.name === gp.name)) {
+            c.products.push({ name: gp.name, rekPrice: gp.rek_price, margin: c.globalMargin || 30 });
+            changed = true;
+        }
+    });
+    if (changed) saveContractToServer(c);
+
     const tbody = document.getElementById('productBody');
     tbody.innerHTML = c.products.map((p, i) => {
-        // Look up current rek price from global catalog
         const catalogProduct = globalProducts.find(gp => gp.name === p.name);
-        const rekPrice = catalogProduct ? catalogProduct.rek_price : p.rekPrice;
+        if (!catalogProduct) return '';
+        const rekPrice = catalogProduct.rek_price;
         const price = calcPrice(rekPrice, p.margin);
         return `
         <tr>
@@ -618,49 +620,16 @@ function renderProducts() {
             <td class="rek-price">${rekPrice.toLocaleString('sv-SE')} kr</td>
             <td><input type="number" value="${p.margin}" min="0" max="99" style="width:70px;text-align:center;" onchange="updateProduct(${i},'margin',this.value)"> %</td>
             <td class="calculated">${price.toLocaleString('sv-SE')} kr</td>
-            <td><button class="btn-remove" onclick="removeProduct(${i})">&times;</button></td>
         </tr>`;
     }).join('');
 }
 
 async function updateProduct(index, field, value) {
     const c = getContract();
-    if (field === 'name') c.products[index].name = value;
     if (field === 'margin') c.products[index].margin = parseFloat(value) || 0;
-    if (field === 'rekPrice') c.products[index].rekPrice = parseFloat(value) || 0;
     await saveContractToServer(c);
     renderProducts();
     flashSaved('priceSaved');
-}
-
-async function removeProduct(index) {
-    const c = getContract();
-    c.products.splice(index, 1);
-    await saveContractToServer(c);
-    renderProducts();
-    renderProductSelect();
-}
-
-function renderProductSelect() {
-    const c = getContract();
-    const existingNames = c.products.map(p => p.name);
-    const available = globalProducts.filter(gp => !existingNames.includes(gp.name));
-    const select = document.getElementById('newProductSelect');
-    select.innerHTML = '<option value="">Välj produkt från katalogen...</option>' +
-        available.map(gp => `<option value="${escHtml(gp.name)}" data-rek="${gp.rek_price}">${escHtml(gp.name)} (${gp.rek_price.toLocaleString('sv-SE')} kr)</option>`).join('');
-}
-
-async function addProduct() {
-    const select = document.getElementById('newProductSelect');
-    const name = select.value;
-    if (!name) { alert('Välj en produkt från katalogen'); return; }
-    const catalogProduct = globalProducts.find(gp => gp.name === name);
-    if (!catalogProduct) return;
-    const c = getContract();
-    c.products.push({ name, rekPrice: catalogProduct.rek_price, margin: c.globalMargin || 30 });
-    await saveContractToServer(c);
-    renderProducts();
-    renderProductSelect();
 }
 
 async function applyGlobalMargin() {
@@ -1172,7 +1141,6 @@ async function init() {
         renderNotes();
         loadInvoice();
         renderProducts();
-        renderProductSelect();
         renderInvoiceProducts();
 
         if (initialTab === 'avtal') switchTab('avtal');
