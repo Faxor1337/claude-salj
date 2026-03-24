@@ -369,18 +369,12 @@
                     <th style="text-align:center;">Skickat</th>
                     <th style="text-align:center;">Fakturerat</th>
                     <th style="text-align:center;">Kvar i butik</th>
+                    <th style="text-align:center;">Skicka antal</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody id="provpaketBalanceBody"></tbody>
         </table>
-
-        <div style="display:flex;gap:12px;margin-top:20px;align-items:center;">
-            <select id="provpaketProduct" style="flex:1;padding:9px 12px;border:1px solid #303348;border-radius:8px;font-size:14px;background:#1e2030;color:#e0e0e8;font-family:inherit;">
-                <option value="">Välj produkt...</option>
-            </select>
-            <input type="number" id="provpaketQty" placeholder="Antal" min="1" style="width:100px;padding:9px 12px;border:1px solid #303348;border-radius:8px;font-size:14px;background:#1e2030;color:#e0e0e8;font-family:inherit;text-align:center;">
-            <button class="add-btn" onclick="addProvpaketEntry()">+ Skicka provpaket</button>
-        </div>
 
         <div style="margin-top:36px;border-top:1px solid #252836;padding-top:24px;">
             <h3>Historik</h3>
@@ -650,23 +644,23 @@ async function loadProvpaket() {
     ]);
     renderProvpaketBalance();
     renderProvpaketLog();
-    renderProvpaketProductSelect();
 }
 
 function renderProvpaketBalance() {
     const tbody = document.getElementById('provpaketBalanceBody');
-    if (provpaketBalance.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#6b7280;padding:24px;">Inga provpaket skickade ännu.</td></tr>';
-        return;
-    }
-    tbody.innerHTML = provpaketBalance.map(p => {
-        const bal = Number(p.balance);
-        const color = bal > 0 ? '#fb923c' : '#4ade80';
+    tbody.innerHTML = globalProducts.map(gp => {
+        const bal = provpaketBalance.find(p => p.product_name === gp.name);
+        const sent = bal ? Number(bal.sent) : 0;
+        const invoiced = bal ? Number(bal.invoiced) : 0;
+        const remaining = sent - invoiced;
+        const color = remaining > 0 ? '#fb923c' : '#6b7280';
         return `<tr>
-            <td style="font-weight:500;color:#e0e0e8;">${escHtml(p.product_name)}</td>
-            <td style="text-align:center;">${p.sent}</td>
-            <td style="text-align:center;">${p.invoiced}</td>
-            <td style="text-align:center;font-weight:700;color:${color};">${bal}</td>
+            <td style="font-weight:500;color:#e0e0e8;">${escHtml(gp.name)}</td>
+            <td style="text-align:center;">${sent}</td>
+            <td style="text-align:center;">${invoiced}</td>
+            <td style="text-align:center;font-weight:700;color:${color};">${remaining}</td>
+            <td style="text-align:center;"><input type="number" min="1" placeholder="0" id="ppQty-${gp.id}" style="width:70px;text-align:center;padding:6px 10px;border:1px solid #303348;border-radius:6px;background:#161822;color:#e0e0e8;font-size:14px;font-family:inherit;"></td>
+            <td><button class="add-btn" style="padding:6px 14px;font-size:13px;" onclick="sendProvpaket('${escHtml(gp.name)}',${gp.id})">Skicka</button></td>
         </tr>`;
     }).join('');
 }
@@ -694,19 +688,12 @@ function renderProvpaketLog() {
     }).join('');
 }
 
-function renderProvpaketProductSelect() {
-    const select = document.getElementById('provpaketProduct');
-    select.innerHTML = '<option value="">Välj produkt...</option>' +
-        globalProducts.map(gp => `<option value="${escHtml(gp.name)}">${escHtml(gp.name)}</option>`).join('');
-}
-
-async function addProvpaketEntry() {
-    const name = document.getElementById('provpaketProduct').value;
-    const qty = parseInt(document.getElementById('provpaketQty').value) || 0;
-    if (!name) { alert('Välj en produkt'); return; }
+async function sendProvpaket(name, productId) {
+    const input = document.getElementById('ppQty-' + productId);
+    const qty = parseInt(input.value) || 0;
     if (qty <= 0) { alert('Ange antal'); return; }
     await API.addProvpaket({ client_id: clientId, product_name: name, quantity: qty });
-    document.getElementById('provpaketQty').value = '';
+    input.value = '';
     showToast(`${qty} st ${name} skickat som provpaket`);
     await loadProvpaket();
 }
