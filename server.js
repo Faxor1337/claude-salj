@@ -278,6 +278,11 @@ app.put('/api/invoices/:id', requireAuth, async (req, res) => {
     res.json({ ok: true });
 });
 
+app.delete('/api/invoices/:id', requireAdmin, async (req, res) => {
+    await pool.query('DELETE FROM invoices WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+});
+
 app.get('/api/invoices/next-nr', requireAuth, async (req, res) => {
     const { rows } = await pool.query('SELECT COALESCE(MAX(nr), 1000) + 1 AS next FROM invoices');
     res.json({ nr: rows[0].next });

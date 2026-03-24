@@ -59,6 +59,7 @@ const API = {
     },
     async createInvoice(data) { const r = await this.fetch('/api/invoices', { method: 'POST', body: JSON.stringify(data) }); return r ? r.json() : null; },
     async updateInvoice(id, data) { await this.fetch(`/api/invoices/${id}`, { method: 'PUT', body: JSON.stringify(data) }); },
+    async deleteInvoice(id) { await this.fetch(`/api/invoices/${id}`, { method: 'DELETE' }); },
     async getNextInvoiceNr() { const r = await this.fetch('/api/invoices/next-nr'); const d = await r.json(); return d.nr; },
 
     // Notes

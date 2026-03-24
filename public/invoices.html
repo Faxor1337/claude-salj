@@ -207,6 +207,7 @@ function renderTable() {
             <td style="white-space:nowrap;">
                 ${inv.status !== 'paid' ? `<button class="btn-sm" onclick="markPaid(${inv.id})">Betald</button> ` : ''}
                 <button class="btn-sm" onclick="redownload(${inv.id})">PDF</button>
+                <button class="btn-sm" style="color:#f87171;" onclick="deleteInvoice(${inv.id}, ${inv.nr})">Ta bort</button>
             </td>
         </tr>`;
     }).join('');
@@ -217,6 +218,15 @@ function renderTable() {
     document.getElementById('statUnpaid').textContent = all.filter(i => i.status !== 'paid').reduce((s, i) => s + i.totalInc, 0).toLocaleString('sv-SE') + ' kr';
     document.getElementById('statFollowup').textContent = all.filter(i => i.followupDate && i.followupDate <= today && i.status !== 'paid').length;
     document.getElementById('statCount').textContent = all.length;
+}
+
+async function deleteInvoice(invoiceId, invoiceNr) {
+    const input = prompt(`Vill du ta bort faktura #${invoiceNr}? Skriv "delete" för att bekräfta:`);
+    if (input !== 'delete') return;
+    await API.deleteInvoice(invoiceId);
+    allInvoicesList = await API.getInvoices();
+    renderTable();
+    renderNotifications();
 }
 
 async function markPaid(invoiceId) {
