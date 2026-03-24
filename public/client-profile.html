@@ -319,7 +319,7 @@
 
         <h3>Prissättning <span class="save-indicator" id="priceSaved">Sparat</span></h3>
         <div class="margin-bar">
-            <label>Standard rabatt:</label>
+            <label>Standard marginal:</label>
             <input type="number" id="globalMargin" value="30" min="0" max="99" onchange="applyGlobalMargin()">
             <span>%</span>
             <span style="margin-left:8px;color:#8b8fa4;">— Applicera på alla produkter</span>
@@ -330,7 +330,7 @@
                 <tr>
                     <th>Produkt</th>
                     <th>Rek. pris (kr)</th>
-                    <th>Rabatt %</th>
+                    <th>Butikens marginal %</th>
                     <th>Butikens inköpspris (kr)</th>
                     <th></th>
                 </tr>
@@ -952,7 +952,7 @@ function downloadPDF() {
         <tr>
             <th>Produkt</th>
             <th class="right">Rek. pris</th>
-            <th class="center">Rabatt</th>
+            <th class="center">Butikens marginal</th>
             <th class="right">Butikens inköpspris</th>
         </tr>
     </thead>
