@@ -331,7 +331,7 @@
                     <th>Produkt</th>
                     <th>Rek. pris (kr)</th>
                     <th>Rabatt %</th>
-                    <th>Ert pris (kr)</th>
+                    <th>Butikens inköpspris (kr)</th>
                     <th></th>
                 </tr>
             </thead>
@@ -543,7 +543,8 @@ async function saveInvoice() {
 }
 
 function calcPrice(rekPrice, margin) {
-    return Math.round(rekPrice * (1 - margin / 100));
+    const exMoms = rekPrice * 0.8;
+    return Math.round(exMoms * (1 - margin / 100));
 }
 
 function renderProducts() {
@@ -952,7 +953,7 @@ function downloadPDF() {
             <th>Produkt</th>
             <th class="right">Rek. pris</th>
             <th class="center">Rabatt</th>
-            <th class="right">Ert pris</th>
+            <th class="right">Butikens inköpspris</th>
         </tr>
     </thead>
     <tbody>
