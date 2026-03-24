@@ -684,8 +684,17 @@ function renderProvpaketLog() {
             <span style="color:#e0e0e8;flex:1;">${escHtml(entry.product_name)}</span>
             <span style="font-weight:700;color:${isIn ? '#4ade80' : '#fb923c'};">${sign}${entry.quantity} st</span>
             <span style="color:#6b7280;font-size:12px;">${escHtml(entry.created_by || '')}</span>
+            <button onclick="deleteProvpaketEntry(${entry.id})" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:16px;padding:4px 8px;border-radius:4px;transition:color 0.15s;" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='#6b7280'">&times;</button>
         </div>`;
     }).join('');
+}
+
+async function deleteProvpaketEntry(id) {
+    const input = prompt('Vill du ta bort denna post? Skriv "delete" för att bekräfta:');
+    if (input !== 'delete') return;
+    await API.deleteProvpaket(id);
+    showToast('Post borttagen');
+    await loadProvpaket();
 }
 
 async function sendProvpaket(name, productId) {
