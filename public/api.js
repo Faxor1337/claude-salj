@@ -72,6 +72,12 @@ const API = {
     async updateProduct(id, data) { await this.fetch(`/api/products/${id}`, { method: 'PUT', body: JSON.stringify(data) }); },
     async deleteProduct(id) { await this.fetch(`/api/products/${id}`, { method: 'DELETE' }); },
 
+    // Provpaket
+    async getProvpaket(clientId) { const r = await this.fetch(`/api/provpaket/${clientId}`); return r ? r.json() : []; },
+    async getProvpaketBalance(clientId) { const r = await this.fetch(`/api/provpaket/${clientId}/balance`); return r ? r.json() : []; },
+    async addProvpaket(data) { const r = await this.fetch('/api/provpaket', { method: 'POST', body: JSON.stringify(data) }); return r ? r.json() : null; },
+    async deleteProvpaket(id) { await this.fetch(`/api/provpaket/${id}`, { method: 'DELETE' }); },
+
     // Seed
     async seedCustomers(customers) { const r = await this.fetch('/api/seed-customers', { method: 'POST', body: JSON.stringify({ customers }) }); return r ? r.json() : null; }
 };

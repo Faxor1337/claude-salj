@@ -89,7 +89,7 @@
             <div class="filters">
                 <button class="filter-btn active" onclick="setFilter('all')">Alla</button>
                 <button class="filter-btn" onclick="setFilter('unpaid')">Obetalda</button>
-                <button class="filter-btn" onclick="setFilter('pending')">Väntande</button>
+                <button class="filter-btn" onclick="setFilter('pending')">Sålda prover</button>
                 <button class="filter-btn" onclick="setFilter('paid')">Betalda</button>
                 <button class="filter-btn" onclick="setFilter('overdue')">Förfallna</button>
             </div>
@@ -191,7 +191,7 @@ function renderTable() {
         const dateStr = new Date(inv.date).toLocaleDateString('sv-SE');
         const isOverdue = inv.status !== 'paid' && inv.dueDate < today;
         const followupOverdue = inv.followupDate && inv.followupDate <= today && inv.status !== 'paid';
-        const typeLabel = inv.type === 'pending' ? 'Väntande' : 'Leverans';
+        const typeLabel = inv.type === 'pending' ? 'Sålda prover' : 'Leverans';
         const statusLabel = inv.status === 'paid' ? 'Betald' : inv.status === 'provpaket' ? 'Provpaket' : isOverdue ? 'Förfallen' : 'Obetald';
         const badgeClass = inv.status === 'paid' ? 'paid' : inv.status === 'provpaket' ? 'pending' : isOverdue ? 'overdue' : inv.type === 'pending' ? 'pending' : 'direct';
 
@@ -242,7 +242,7 @@ function redownload(invoiceId) {
     const items = inv.items;
     const invData = inv.invoice || {};
     const dateStr = new Date(inv.date).toLocaleDateString('sv-SE');
-    const typeLabel = inv.type === 'pending' ? 'Väntande faktura' : 'Faktura';
+    const typeLabel = inv.type === 'pending' ? 'Faktura för sålda prover' : 'Faktura';
     const deliveryNote = inv.deliveryDate ? `<br>Leveransdatum: ${inv.deliveryDate}` : '';
     const itemRows = items.map(it => `<tr>
         <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;">${escHtml(it.name)}</td>

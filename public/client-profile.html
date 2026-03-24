@@ -263,6 +263,7 @@
 <div class="tabs">
     <div class="tab active" onclick="switchTab('overview')">Översikt</div>
     <div class="tab" onclick="switchTab('avtal')">Avtal & Prissättning</div>
+    <div class="tab" onclick="switchTab('provpaket')">Provpaket</div>
     <div class="tab" onclick="switchTab('faktura')">Fakturering</div>
 </div>
 
@@ -363,6 +364,39 @@
     </div>
 </div>
 
+<!-- Tab: Provpaket -->
+<div id="tab-provpaket" class="tab-content">
+    <div class="avtal-section">
+        <h3>Provpaket i butik</h3>
+        <p style="font-size:13px;color:#6b7280;margin-bottom:20px;">Antal produkter som finns i butiken men inte ännu fakturerats.</p>
+
+        <table class="product-table" id="provpaketBalanceTable">
+            <thead>
+                <tr>
+                    <th>Produkt</th>
+                    <th style="text-align:center;">Skickat</th>
+                    <th style="text-align:center;">Fakturerat</th>
+                    <th style="text-align:center;">Kvar i butik</th>
+                </tr>
+            </thead>
+            <tbody id="provpaketBalanceBody"></tbody>
+        </table>
+
+        <div style="display:flex;gap:12px;margin-top:20px;align-items:center;">
+            <select id="provpaketProduct" style="flex:1;padding:9px 12px;border:1px solid #303348;border-radius:8px;font-size:14px;background:#1e2030;color:#e0e0e8;font-family:inherit;">
+                <option value="">Välj produkt...</option>
+            </select>
+            <input type="number" id="provpaketQty" placeholder="Antal" min="1" style="width:100px;padding:9px 12px;border:1px solid #303348;border-radius:8px;font-size:14px;background:#1e2030;color:#e0e0e8;font-family:inherit;text-align:center;">
+            <button class="add-btn" onclick="addProvpaketEntry()">+ Skicka provpaket</button>
+        </div>
+
+        <div style="margin-top:36px;border-top:1px solid #252836;padding-top:24px;">
+            <h3>Historik</h3>
+            <div id="provpaketLog" style="margin-top:16px;"></div>
+        </div>
+    </div>
+</div>
+
 <!-- Tab: Fakturering -->
 <div id="tab-faktura" class="tab-content">
     <div class="avtal-section">
@@ -376,8 +410,8 @@
             </button>
             <button class="invoice-type-btn" id="typePendingBtn" onclick="setInvoiceType('pending')">
                 <span class="type-icon">&#x23F3;</span>
-                <span class="type-label">Väntande faktura</span>
-                <span class="type-desc">Varor redan skickade, faktura skickas nu</span>
+                <span class="type-label">Faktura för sålda prover</span>
+                <span class="type-desc">Fakturera sålda varor från provpaket</span>
             </button>
         </div>
 
@@ -449,14 +483,17 @@ let clientInvoices = [];
 let invoiceType = 'direct';
 let invoiceQty = {};
 let globalProducts = [];
+let provpaketBalance = [];
+let provpaketLog = [];
 
 // --- Tabs ---
 function switchTab(tab) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.getElementById('tab-' + tab).classList.add('active');
-    const tabIndex = { overview: 0, avtal: 1, faktura: 2 }[tab] || 0;
+    const tabIndex = { overview: 0, avtal: 1, provpaket: 2, faktura: 3 }[tab] || 0;
     document.querySelectorAll('.tab')[tabIndex].classList.add('active');
+    if (tab === 'provpaket') loadProvpaket();
     if (tab === 'faktura') renderInvoiceHistory();
 }
 
@@ -636,6 +673,75 @@ async function applyGlobalMargin() {
     flashSaved('priceSaved');
 }
 
+// --- Provpaket ---
+async function loadProvpaket() {
+    [provpaketBalance, provpaketLog] = await Promise.all([
+        API.getProvpaketBalance(clientId),
+        API.getProvpaket(clientId)
+    ]);
+    renderProvpaketBalance();
+    renderProvpaketLog();
+    renderProvpaketProductSelect();
+}
+
+function renderProvpaketBalance() {
+    const tbody = document.getElementById('provpaketBalanceBody');
+    if (provpaketBalance.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#6b7280;padding:24px;">Inga provpaket skickade ännu.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = provpaketBalance.map(p => {
+        const bal = Number(p.balance);
+        const color = bal > 0 ? '#fb923c' : '#4ade80';
+        return `<tr>
+            <td style="font-weight:500;color:#e0e0e8;">${escHtml(p.product_name)}</td>
+            <td style="text-align:center;">${p.sent}</td>
+            <td style="text-align:center;">${p.invoiced}</td>
+            <td style="text-align:center;font-weight:700;color:${color};">${bal}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderProvpaketLog() {
+    const container = document.getElementById('provpaketLog');
+    if (provpaketLog.length === 0) {
+        container.innerHTML = '<p style="color:#6b7280;font-size:14px;font-style:italic;">Ingen historik ännu.</p>';
+        return;
+    }
+    container.innerHTML = provpaketLog.map(entry => {
+        const date = new Date(entry.date).toLocaleDateString('sv-SE');
+        const isIn = entry.type === 'in';
+        const badge = isIn
+            ? '<span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;background:rgba(34,197,94,0.15);color:#4ade80;">Skickat</span>'
+            : '<span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;background:rgba(251,146,60,0.15);color:#fb923c;">Fakturerat</span>';
+        const sign = isIn ? '+' : '-';
+        return `<div style="display:flex;align-items:center;gap:16px;padding:10px 0;border-bottom:1px solid #252836;font-size:14px;">
+            <span style="color:#6b7280;width:80px;">${date}</span>
+            ${badge}
+            <span style="color:#e0e0e8;flex:1;">${escHtml(entry.product_name)}</span>
+            <span style="font-weight:700;color:${isIn ? '#4ade80' : '#fb923c'};">${sign}${entry.quantity} st</span>
+            <span style="color:#6b7280;font-size:12px;">${escHtml(entry.created_by || '')}</span>
+        </div>`;
+    }).join('');
+}
+
+function renderProvpaketProductSelect() {
+    const select = document.getElementById('provpaketProduct');
+    select.innerHTML = '<option value="">Välj produkt...</option>' +
+        globalProducts.map(gp => `<option value="${escHtml(gp.name)}">${escHtml(gp.name)}</option>`).join('');
+}
+
+async function addProvpaketEntry() {
+    const name = document.getElementById('provpaketProduct').value;
+    const qty = parseInt(document.getElementById('provpaketQty').value) || 0;
+    if (!name) { alert('Välj en produkt'); return; }
+    if (qty <= 0) { alert('Ange antal'); return; }
+    await API.addProvpaket({ client_id: clientId, product_name: name, quantity: qty });
+    document.getElementById('provpaketQty').value = '';
+    showToast(`${qty} st ${name} skickat som provpaket`);
+    await loadProvpaket();
+}
+
 // --- Invoicing ---
 function setInvoiceType(type) {
     invoiceType = type;
@@ -758,7 +864,7 @@ function downloadInvoicePDF(data) {
     </tr>`).join('');
 
     const dateStr = new Date(data.date).toLocaleDateString('sv-SE');
-    const typeLabel = data.type === 'pending' ? 'Väntande faktura' : 'Faktura';
+    const typeLabel = data.type === 'pending' ? 'Faktura för sålda prover' : 'Faktura';
     const deliveryNote = data.delivery_date ? `<br>Leveransdatum: ${data.delivery_date}` : '';
 
     const html = `<!DOCTYPE html>
@@ -789,7 +895,7 @@ function downloadInvoicePDF(data) {
 <div class="header">
     <div><div class="logo">Virea <span>AB</span></div></div>
     <div class="doc-info">
-        <strong>${typeLabel} #${data.nr}${data.type === 'pending' ? ' <span class="pending-badge">Väntande</span>' : ''}</strong>
+        <strong>${typeLabel} #${data.nr}${data.type === 'pending' ? ' <span class="pending-badge">Sålda prover</span>' : ''}</strong>
         Fakturadatum: ${dateStr}${deliveryNote}<br>
         Förfallodatum: ${data.due_date}<br>
         Ref: ${escHtml(inv.reference || '-')}
@@ -848,7 +954,7 @@ function renderInvoiceHistory() {
     const today = new Date().toISOString().split('T')[0];
     container.innerHTML = clientInvoices.map(inv => {
         const dateStr = new Date(inv.date).toLocaleDateString('sv-SE');
-        const typeLabel = inv.type === 'pending' ? 'Väntande' : 'Leverans';
+        const typeLabel = inv.type === 'pending' ? 'Sålda prover' : 'Leverans';
         const badgeClass = inv.status === 'paid' ? 'paid' : inv.type === 'pending' ? 'pending' : 'direct';
         const statusLabel = inv.status === 'paid' ? 'Betald' : typeLabel;
         const isOverdue = inv.followupDate && inv.followupDate <= today && inv.status !== 'paid';
@@ -1070,6 +1176,7 @@ async function init() {
         renderInvoiceProducts();
 
         if (initialTab === 'avtal') switchTab('avtal');
+        else if (initialTab === 'provpaket') switchTab('provpaket');
         else if (initialTab === 'faktura') switchTab('faktura');
     } catch (err) {
         console.error('init error:', err);

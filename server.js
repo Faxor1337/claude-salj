@@ -99,6 +99,16 @@ async function initDb() {
             rek_price INTEGER NOT NULL DEFAULT 0,
             sort_order INTEGER DEFAULT 0
         );
+        CREATE TABLE IF NOT EXISTS provpaket (
+            id SERIAL PRIMARY KEY,
+            client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+            product_name TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            type TEXT DEFAULT 'in',
+            invoice_id INTEGER,
+            created_by TEXT DEFAULT '',
+            date TIMESTAMPTZ DEFAULT NOW()
+        );
         CREATE TABLE IF NOT EXISTS notes (
             id SERIAL PRIMARY KEY,
             entity_type TEXT NOT NULL,
@@ -269,7 +279,17 @@ app.post('/api/invoices', requireAuth, async (req, res) => {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
         [nr, client_id, client_name, type, delivery_date || '', followup_date || '', due_date, JSON.stringify(items), total, vat, total_inc, JSON.stringify(invoice_info), status || 'unpaid', created_by]
     );
-    res.json(rows[0]);
+    const invoice = rows[0];
+    // Auto-deduct from provpaket when invoicing sold samples
+    if (type === 'pending' && items && items.length > 0) {
+        for (const item of items) {
+            await pool.query(
+                'INSERT INTO provpaket (client_id, product_name, quantity, type, invoice_id, created_by) VALUES ($1,$2,$3,$4,$5,$6)',
+                [client_id, item.name, item.qty, 'out', invoice.id, created_by]
+            );
+        }
+    }
+    res.json(invoice);
 });
 
 app.put('/api/invoices/:id', requireAuth, async (req, res) => {
@@ -331,6 +351,41 @@ app.put('/api/products/:id', requireAdmin, async (req, res) => {
 
 app.delete('/api/products/:id', requireAdmin, async (req, res) => {
     await pool.query('DELETE FROM products WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+});
+
+// ===== PROVPAKET =====
+app.get('/api/provpaket/:clientId', requireAuth, async (req, res) => {
+    const { rows } = await pool.query(
+        'SELECT * FROM provpaket WHERE client_id=$1 ORDER BY date DESC',
+        [req.params.clientId]
+    );
+    res.json(rows);
+});
+
+app.get('/api/provpaket/:clientId/balance', requireAuth, async (req, res) => {
+    const { rows } = await pool.query(`
+        SELECT product_name,
+            SUM(CASE WHEN type='in' THEN quantity ELSE 0 END) as sent,
+            SUM(CASE WHEN type='out' THEN quantity ELSE 0 END) as invoiced,
+            SUM(CASE WHEN type='in' THEN quantity ELSE -quantity END) as balance
+        FROM provpaket WHERE client_id=$1
+        GROUP BY product_name
+    `, [req.params.clientId]);
+    res.json(rows);
+});
+
+app.post('/api/provpaket', requireAuth, async (req, res) => {
+    const { client_id, product_name, quantity } = req.body;
+    const { rows } = await pool.query(
+        'INSERT INTO provpaket (client_id, product_name, quantity, type, created_by) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+        [client_id, product_name, quantity, 'in', req.session.user.name]
+    );
+    res.json(rows[0]);
+});
+
+app.delete('/api/provpaket/:id', requireAdmin, async (req, res) => {
+    await pool.query('DELETE FROM provpaket WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
 });
 
