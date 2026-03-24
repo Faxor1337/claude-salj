@@ -200,6 +200,34 @@
 
         .stat-card .label { font-size: 13px; color: #8b8fa4; margin-bottom: 4px; }
         .stat-card .value { font-size: 26px; font-weight: 700; color: #e0e0e8; }
+
+        .save-indicator {
+            font-size: 12px;
+            color: #4ade80;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s;
+            margin-left: 8px;
+        }
+        .save-indicator.show { opacity: 1; }
+
+        .product-input {
+            padding: 8px 12px;
+            border: 1px solid #303348;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            background: #1e2030;
+            color: #e0e0e8;
+        }
+        .product-input:focus { border-color: #6366f1; outline: none; }
+
+        .empty-catalog {
+            padding: 32px 24px;
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -238,6 +266,21 @@
             </thead>
             <tbody id="usersTable"></tbody>
         </table>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h2>Produktkatalog <span class="save-indicator" id="productSaved">Sparat</span></h2>
+                <p style="font-size:13px;color:#6b7280;margin-top:2px;">Globala rek. priser. Varje kund kan sedan få rabatt via sin marginal.</p>
+            </div>
+        </div>
+        <div id="productCatalog"></div>
+        <div style="display:flex;gap:12px;padding:16px 24px;border-top:1px solid #252836;align-items:center;">
+            <input type="text" id="newProdName" placeholder="Produktnamn" style="flex:1;padding:9px 14px;border:1px solid #303348;border-radius:8px;font-size:14px;background:#1e2030;color:#e0e0e8;font-family:inherit;">
+            <input type="number" id="newProdRek" placeholder="Rek. pris (kr)" min="0" style="width:140px;padding:9px 14px;border:1px solid #303348;border-radius:8px;font-size:14px;background:#1e2030;color:#e0e0e8;font-family:inherit;">
+            <button class="nav-btn btn-primary" onclick="addCatalogProduct()">+ Lägg till</button>
+        </div>
     </div>
 </div>
 
@@ -292,11 +335,14 @@
 let admin = null;
 let editingUserId = null;
 
+let catalogProducts = [];
+
 (async function init() {
     admin = await requireAdmin();
     if (!admin) return;
     renderNav('admin');
     await renderUsers();
+    await loadCatalog();
 })();
 
 async function renderUsers() {
@@ -421,6 +467,62 @@ async function deleteUser(id) {
 // Close modals on overlay click
 document.getElementById('addModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeAddModal(); });
 document.getElementById('editModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeEditModal(); });
+
+// ===== Product Catalog =====
+function flashProductSaved() {
+    const el = document.getElementById('productSaved');
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 1500);
+}
+
+async function loadCatalog() {
+    catalogProducts = await API.getProducts();
+    renderCatalog();
+}
+
+function renderCatalog() {
+    const container = document.getElementById('productCatalog');
+    if (catalogProducts.length === 0) {
+        container.innerHTML = '<div class="empty-catalog">Inga produkter tillagda. Lägg till din första produkt nedan.</div>';
+        return;
+    }
+    container.innerHTML = `<table>
+        <thead><tr><th>Produkt</th><th style="width:160px;">Rek. pris (kr)</th><th style="width:80px;"></th></tr></thead>
+        <tbody>${catalogProducts.map(p => `<tr>
+            <td><input type="text" class="product-input" style="width:100%;" value="${esc(p.name)}" onchange="updateCatalogProduct(${p.id},'name',this.value)"></td>
+            <td><input type="number" class="product-input" style="width:120px;text-align:right;" value="${p.rek_price}" min="0" onchange="updateCatalogProduct(${p.id},'rek_price',this.value)"></td>
+            <td><button class="btn-danger-sm" onclick="deleteCatalogProduct(${p.id})">&times; Ta bort</button></td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+async function addCatalogProduct() {
+    const name = document.getElementById('newProdName').value.trim();
+    const rekPrice = parseInt(document.getElementById('newProdRek').value) || 0;
+    if (!name) { alert('Ange produktnamn'); return; }
+    if (rekPrice <= 0) { alert('Ange ett rek. pris'); return; }
+    await API.createProduct({ name, rek_price: rekPrice });
+    document.getElementById('newProdName').value = '';
+    document.getElementById('newProdRek').value = '';
+    await loadCatalog();
+    flashProductSaved();
+}
+
+async function updateCatalogProduct(id, field, value) {
+    const product = catalogProducts.find(p => p.id === id);
+    if (!product) return;
+    if (field === 'name') product.name = value;
+    if (field === 'rek_price') product.rek_price = parseInt(value) || 0;
+    await API.updateProduct(id, { name: product.name, rek_price: product.rek_price });
+    flashProductSaved();
+}
+
+async function deleteCatalogProduct(id) {
+    if (!confirm('Ta bort denna produkt från katalogen?')) return;
+    await API.deleteProduct(id);
+    await loadCatalog();
+    flashProductSaved();
+}
 </script>
 
 </body>

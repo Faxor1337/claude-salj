@@ -319,7 +319,7 @@
 
         <h3>Prissättning <span class="save-indicator" id="priceSaved">Sparat</span></h3>
         <div class="margin-bar">
-            <label>Standard marginal:</label>
+            <label>Standard rabatt:</label>
             <input type="number" id="globalMargin" value="30" min="0" max="99" onchange="applyGlobalMargin()">
             <span>%</span>
             <span style="margin-left:8px;color:#8b8fa4;">— Applicera på alla produkter</span>
@@ -330,7 +330,7 @@
                 <tr>
                     <th>Produkt</th>
                     <th>Rek. pris (kr)</th>
-                    <th>Marginal %</th>
+                    <th>Rabatt %</th>
                     <th>Ert pris (kr)</th>
                     <th></th>
                 </tr>
@@ -339,8 +339,9 @@
         </table>
 
         <div class="add-product-row">
-            <input type="text" id="newProductName" placeholder="Produktnamn">
-            <input type="number" id="newProductRek" placeholder="Rek. pris" min="0" style="width:120px;">
+            <select id="newProductSelect" style="flex:1;padding:9px 12px;border:1px solid #303348;border-radius:8px;font-size:14px;background:#1e2030;color:#e0e0e8;font-family:inherit;">
+                <option value="">Välj produkt från katalogen...</option>
+            </select>
             <button onclick="addProduct()">+ Lägg till produkt</button>
         </div>
 
@@ -438,6 +439,7 @@ let contractData = null;
 let clientInvoices = [];
 let invoiceType = 'direct';
 let invoiceQty = {};
+let globalProducts = [];
 
 // --- Tabs ---
 function switchTab(tab) {
@@ -494,11 +496,7 @@ function renderNotes() {
 function getContract() {
     return contractData || {
         invoice: { company: '', orgnr: '', address: '', postal: '', reference: '', terms: '30 dagar netto', email: '' },
-        products: [
-            { name: 'Produkt A', rekPrice: 100, margin: 30 },
-            { name: 'Produkt B', rekPrice: 250, margin: 30 },
-            { name: 'Produkt C', rekPrice: 500, margin: 30 },
-        ],
+        products: [],
         globalMargin: 30
     };
 }
@@ -542,18 +540,21 @@ async function saveInvoice() {
 }
 
 function calcPrice(rekPrice, margin) {
-    return Math.round(rekPrice * (1 + margin / 100));
+    return Math.round(rekPrice * (1 - margin / 100));
 }
 
 function renderProducts() {
     const c = getContract();
     const tbody = document.getElementById('productBody');
     tbody.innerHTML = c.products.map((p, i) => {
-        const price = calcPrice(p.rekPrice, p.margin);
+        // Look up current rek price from global catalog
+        const catalogProduct = globalProducts.find(gp => gp.name === p.name);
+        const rekPrice = catalogProduct ? catalogProduct.rek_price : p.rekPrice;
+        const price = calcPrice(rekPrice, p.margin);
         return `
         <tr>
-            <td><input type="text" value="${escHtml(p.name)}" onchange="updateProduct(${i},'name',this.value)"></td>
-            <td class="rek-price">${p.rekPrice.toLocaleString('sv-SE')} kr</td>
+            <td style="font-weight:500;color:#e0e0e8;">${escHtml(p.name)}</td>
+            <td class="rek-price">${rekPrice.toLocaleString('sv-SE')} kr</td>
             <td><input type="number" value="${p.margin}" min="0" max="99" style="width:70px;text-align:center;" onchange="updateProduct(${i},'margin',this.value)"> %</td>
             <td class="calculated">${price.toLocaleString('sv-SE')} kr</td>
             <td><button class="btn-remove" onclick="removeProduct(${i})">&times;</button></td>
@@ -576,18 +577,29 @@ async function removeProduct(index) {
     c.products.splice(index, 1);
     await saveContractToServer(c);
     renderProducts();
+    renderProductSelect();
+}
+
+function renderProductSelect() {
+    const c = getContract();
+    const existingNames = c.products.map(p => p.name);
+    const available = globalProducts.filter(gp => !existingNames.includes(gp.name));
+    const select = document.getElementById('newProductSelect');
+    select.innerHTML = '<option value="">Välj produkt från katalogen...</option>' +
+        available.map(gp => `<option value="${escHtml(gp.name)}" data-rek="${gp.rek_price}">${escHtml(gp.name)} (${gp.rek_price.toLocaleString('sv-SE')} kr)</option>`).join('');
 }
 
 async function addProduct() {
-    const name = document.getElementById('newProductName').value.trim();
-    const rek = parseFloat(document.getElementById('newProductRek').value) || 0;
-    if (!name) { alert('Ange produktnamn'); return; }
+    const select = document.getElementById('newProductSelect');
+    const name = select.value;
+    if (!name) { alert('Välj en produkt från katalogen'); return; }
+    const catalogProduct = globalProducts.find(gp => gp.name === name);
+    if (!catalogProduct) return;
     const c = getContract();
-    c.products.push({ name, rekPrice: rek, margin: c.globalMargin || 30 });
+    c.products.push({ name, rekPrice: catalogProduct.rek_price, margin: c.globalMargin || 30 });
     await saveContractToServer(c);
-    document.getElementById('newProductName').value = '';
-    document.getElementById('newProductRek').value = '';
     renderProducts();
+    renderProductSelect();
 }
 
 async function applyGlobalMargin() {
@@ -612,7 +624,9 @@ function renderInvoiceProducts() {
     const c = getContract();
     const tbody = document.getElementById('invoiceProductBody');
     tbody.innerHTML = c.products.map((p, i) => {
-        const price = calcPrice(p.rekPrice, p.margin);
+        const catalogProduct = globalProducts.find(gp => gp.name === p.name);
+        const rekPrice = catalogProduct ? catalogProduct.rek_price : p.rekPrice;
+        const price = calcPrice(rekPrice, p.margin);
         const qty = invoiceQty[i] || 0;
         const sum = price * qty;
         return `<tr>
@@ -634,7 +648,9 @@ function updateInvoiceTotals() {
     const c = getContract();
     let total = 0;
     c.products.forEach((p, i) => {
-        total += calcPrice(p.rekPrice, p.margin) * (invoiceQty[i] || 0);
+        const catalogProduct = globalProducts.find(gp => gp.name === p.name);
+        const rekPrice = catalogProduct ? catalogProduct.rek_price : p.rekPrice;
+        total += calcPrice(rekPrice, p.margin) * (invoiceQty[i] || 0);
     });
     const vat = Math.round(total * 0.25);
     document.getElementById('invoiceTotal').textContent = total.toLocaleString('sv-SE') + ' kr';
@@ -649,7 +665,9 @@ async function buildInvoiceData() {
     c.products.forEach((p, i) => {
         const qty = invoiceQty[i] || 0;
         if (qty > 0) {
-            const price = calcPrice(p.rekPrice, p.margin);
+            const catalogProduct = globalProducts.find(gp => gp.name === p.name);
+            const rekPrice = catalogProduct ? catalogProduct.rek_price : p.rekPrice;
+            const price = calcPrice(rekPrice, p.margin);
             items.push({ name: p.name, price, qty, sum: price * qty });
         }
     });
@@ -846,17 +864,25 @@ function downloadPDF() {
     const today = new Date().toLocaleDateString('sv-SE');
 
     const productRows = c.products.map(p => {
-        const price = calcPrice(p.rekPrice, p.margin);
+        const catalogProduct = globalProducts.find(gp => gp.name === p.name);
+        const rekPrice = catalogProduct ? catalogProduct.rek_price : p.rekPrice;
+        const price = calcPrice(rekPrice, p.margin);
         return `<tr>
             <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;">${escHtml(p.name)}</td>
-            <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;text-align:right;color:#888;">${p.rekPrice.toLocaleString('sv-SE')} kr</td>
+            <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;text-align:right;color:#888;">${rekPrice.toLocaleString('sv-SE')} kr</td>
             <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;text-align:center;">${p.margin}%</td>
             <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;text-align:right;font-weight:700;">${price.toLocaleString('sv-SE')} kr</td>
         </tr>`;
     }).join('');
 
-    const totalRek = c.products.reduce((s, p) => s + p.rekPrice, 0);
-    const totalPrice = c.products.reduce((s, p) => s + calcPrice(p.rekPrice, p.margin), 0);
+    const totalRek = c.products.reduce((s, p) => {
+        const cp = globalProducts.find(gp => gp.name === p.name);
+        return s + (cp ? cp.rek_price : p.rekPrice);
+    }, 0);
+    const totalPrice = c.products.reduce((s, p) => {
+        const cp = globalProducts.find(gp => gp.name === p.name);
+        return s + calcPrice(cp ? cp.rek_price : p.rekPrice, p.margin);
+    }, 0);
 
     const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>Avtal - ${escHtml(client.name)}</title>
@@ -922,7 +948,7 @@ function downloadPDF() {
         <tr>
             <th>Produkt</th>
             <th class="right">Rek. pris</th>
-            <th class="center">Marginal</th>
+            <th class="center">Rabatt</th>
             <th class="right">Ert pris</th>
         </tr>
     </thead>
@@ -998,9 +1024,11 @@ async function init() {
     clientNotes = await API.getNotes('client', clientId);
     renderNotes();
 
+    globalProducts = await API.getProducts();
     contractData = await API.getContract(clientId);
     loadInvoice();
     renderProducts();
+    renderProductSelect();
 
     clientInvoices = await API.getInvoices(clientId);
     renderInvoiceProducts();

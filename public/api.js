@@ -65,6 +65,12 @@ const API = {
     async getNotes(type, entityId) { const r = await this.fetch(`/api/notes/${type}/${entityId}`); return r ? r.json() : []; },
     async addNote(data) { const r = await this.fetch('/api/notes', { method: 'POST', body: JSON.stringify(data) }); return r ? r.json() : null; },
 
+    // Products (global catalog)
+    async getProducts() { const r = await this.fetch('/api/products'); return r ? r.json() : []; },
+    async createProduct(data) { const r = await this.fetch('/api/products', { method: 'POST', body: JSON.stringify(data) }); return r ? r.json() : null; },
+    async updateProduct(id, data) { await this.fetch(`/api/products/${id}`, { method: 'PUT', body: JSON.stringify(data) }); },
+    async deleteProduct(id) { await this.fetch(`/api/products/${id}`, { method: 'DELETE' }); },
+
     // Seed
     async seedCustomers(customers) { const r = await this.fetch('/api/seed-customers', { method: 'POST', body: JSON.stringify({ customers }) }); return r ? r.json() : null; }
 };

@@ -93,6 +93,12 @@ async function initDb() {
             status TEXT DEFAULT 'unpaid',
             created_by TEXT DEFAULT ''
         );
+        CREATE TABLE IF NOT EXISTS products (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            rek_price INTEGER NOT NULL DEFAULT 0,
+            sort_order INTEGER DEFAULT 0
+        );
         CREATE TABLE IF NOT EXISTS notes (
             id SERIAL PRIMARY KEY,
             entity_type TEXT NOT NULL,
@@ -290,6 +296,32 @@ app.post('/api/notes', requireAuth, async (req, res) => {
         [entity_type, entity_id, text, req.session.user.name]
     );
     res.json(rows[0]);
+});
+
+// ===== PRODUCTS (global catalog) =====
+app.get('/api/products', requireAuth, async (req, res) => {
+    const { rows } = await pool.query('SELECT * FROM products ORDER BY sort_order, id');
+    res.json(rows);
+});
+
+app.post('/api/products', requireAdmin, async (req, res) => {
+    const { name, rek_price } = req.body;
+    const { rows } = await pool.query(
+        'INSERT INTO products (name, rek_price) VALUES ($1, $2) RETURNING *',
+        [name, rek_price || 0]
+    );
+    res.json(rows[0]);
+});
+
+app.put('/api/products/:id', requireAdmin, async (req, res) => {
+    const { name, rek_price } = req.body;
+    await pool.query('UPDATE products SET name=$1, rek_price=$2 WHERE id=$3', [name, rek_price, req.params.id]);
+    res.json({ ok: true });
+});
+
+app.delete('/api/products/:id', requireAdmin, async (req, res) => {
+    await pool.query('DELETE FROM products WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
 });
 
 // ===== SEED CUSTOMERS =====
