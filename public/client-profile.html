@@ -930,7 +930,16 @@ function renderInvoiceHistory() {
         return;
     }
     const today = new Date().toISOString().split('T')[0];
-    container.innerHTML = clientInvoices.map(inv => {
+    container.innerHTML = clientInvoices.map(raw => {
+        const inv = {
+            ...raw,
+            totalInc: Number(raw.total_inc || 0),
+            total: Number(raw.total || 0),
+            createdBy: raw.created_by || '',
+            followupDate: raw.followup_date || '',
+            deliveryDate: raw.delivery_date || '',
+            clientName: raw.client_name || ''
+        };
         const dateStr = new Date(inv.date).toLocaleDateString('sv-SE');
         const typeLabel = inv.type === 'pending' ? 'Sålda prover' : 'Leverans';
         const badgeClass = inv.status === 'paid' ? 'paid' : inv.type === 'pending' ? 'pending' : 'direct';
